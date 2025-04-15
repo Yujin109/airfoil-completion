@@ -1,0 +1,45 @@
+{
+  "folders": [
+    {
+      "name": "airfoil-completion",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+      "source.fixAll.stylelint": "explicit"
+    },
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.formatOnType": true,
+    "json.format.keepLines": true,
+    "[python]": {
+      "editor.defaultFormatter": "ms-python.black-formatter",
+      "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+      }
+    },
+    "flake8.args": [
+      "--max-line-length=119",
+      "--max-complexity=100",
+      "--ignore=E203,E501,W605,W291,W503,E704",
+      "--exclude=.venv,.git,__pycache__,.mypy_cache"
+    ],
+    "isort.args": [ "--settings-path=pyproject.toml" ],
+    "black-formatter.args": [ "--config=pyproject.toml" ],
+    // "mypy-type-checker.args": [ "--config-file=pyproject.toml" ]
+  },
+  "extensions": {
+    "recommendations": [
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint",
+      "ms-python.flake8",
+      "ms-python.isort",
+      "ms-python.black-formatter",
+      "ms-python.mypy-type-checker",
+      "ms-azuretools.azure-dev",
+      "ms-azuretools.vscode-azurefunctions"
+    ]
+  }
+}
