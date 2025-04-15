@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "airfoil-completion"
 version = "0.0.0"
-description = "Master Thesis Repository"
+description = "Repository for Master Thesis"
 authors = ["Yujin109 <koba.you.3939@gmail.com>"]
 readme = "README.md"
 package-mode = false
@@ -12,7 +12,6 @@ python = "^3.10"
 python-dotenv = "^1.0.0"
 python-multipart = "^0.0.6"
 pandas = "^2.1.3"
-# neollm = { path = "./neo-llm-module" }
 xfoil = { path = "./xfoil-python" }
 deprecated = "^1.2.15"
 scipy = "^1.15.1"
