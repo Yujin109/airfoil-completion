@@ -23,13 +23,13 @@ import wandb
 wandb.login(key=os.environ["WANDB_API_KEY"])
 
 # ハイパーパラメータなどの設定
-execution_name = "252418-002"
+execution_name = "252418-003"
 num_epochs = 2000
 initial_lr = 2e-4
 b1 = 0.0
 b2 = 0.9
 batch_size = 32
-diffusion_params = {"num_timesteps": 500, "beta_start": 1e-4, "beta_end": 2e-2}
+diffusion_params = {"num_timesteps": 1000, "beta_start": 1e-4, "beta_end": 2e-2}
 output_mode = "conv3x3"
 guidance_scale = 3.0  # Classfier-Free Guidance スケール
 p_uncond = 0.1
