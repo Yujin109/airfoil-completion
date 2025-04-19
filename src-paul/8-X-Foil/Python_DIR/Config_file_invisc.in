@@ -1,0 +1,16 @@
+LOAD tmp_airfoil.txt
+TMP-Airfoil
+PPAR
+N 248
+
+
+PANE
+OPER
+PACC
+tmp_CL.txt
+
+ITER 50
+Alfa 5
+
+
+quit

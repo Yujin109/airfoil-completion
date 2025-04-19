@@ -1,0 +1,17 @@
+LOAD tmp_airfoil.txt
+TMP-Airfoil
+
+
+PANE
+OPER
+VISC 3E6
+ITER 600
+PACC
+
+
+ASeq 0 6 1.0
+PWRT
+tmp_CL.txt
+
+
+quit
