@@ -1,0 +1,12 @@
+LOAD tmp_airfoil.txt
+TMP-Airfoil
+PANE
+OPER
+PACC
+tmp_CL.txt
+
+ITER 50
+ASeq 0 5 1.0
+
+
+quit

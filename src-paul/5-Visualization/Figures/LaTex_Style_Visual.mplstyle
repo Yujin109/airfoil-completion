@@ -1,0 +1,12 @@
+figure.figsize : 3.19, 1.97
+font.size:    10.0
+pgf.texsystem: "pdflatex"
+font.family: serif
+#font.serif: Palatino
+lines.linewidth: 0.8
+legend.frameon : False
+axes.titlesize: medium
+figure.titlesize: medium
+text.usetex: True
+text.latex.preamble: \usepackage{amsmath}\usepackage{amssymb}\usepackage{helvet}
+#\usepackage{siunitx}[=v2]\sisetup{detect-all}

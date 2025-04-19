@@ -1,0 +1,13 @@
+LOAD cdiffusion_cl_0.7_g_0.0_w_15_0.txt
+cdiffusion_cl_0.7_g_0.0_w_15_0
+PANE
+OPER
+Visc 1000000
+PACC
+polar_file.txt
+
+ITER 50
+ASeq -10 25 1.0
+
+
+quit
