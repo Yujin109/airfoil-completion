@@ -33,6 +33,8 @@ diffusion_params = {"num_timesteps": 500, "beta_start": 1e-4, "beta_end": 2e-2}
 output_mode = "conv3x3"
 guidance_scale = 2.0  # Classfier-Free Guidance スケール
 p_uncond = 0.1
+evaluation_interval = 500  # default:200
+
 
 wandb.init(
     project="airfoil_diffusion",
@@ -47,6 +49,7 @@ wandb.init(
         "output_mode": output_mode,
         "guidance_scale": guidance_scale,
         "p_uncond": p_uncond,
+        "evaluation_interval": evaluation_interval,
         "dataset_prefix": "NACA&Joukowski",
         "memo": "optimizerをAdamに変更. Classifier-Free Guidance追加(null) モデルをResidualUNetに変更. ",
     },
@@ -645,7 +648,6 @@ wandb.config.update({"model_size_MB": model_size_MB})
 # ============================================================
 # 8. 学習ループ
 # ============================================================
-evaluation_interval = 200  # default:200
 
 train_loss_history = []
 
