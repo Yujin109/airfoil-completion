@@ -361,17 +361,29 @@ class ConditionalResidualUNet(nn.Module):
             return out.view(B, self.in_channels, -1)
 
 
-def pos_encoding(timesteps: torch.Tensor, output_dim: int, device: str = "cpu") -> torch.Tensor:
-    batch_size = timesteps.size(0)
-    v = torch.zeros(batch_size, output_dim, device=timesteps.device)
-    for i in range(batch_size):
-        t = timesteps[i].item()
-        for dim in range(output_dim):
-            if dim % 2 == 0:
-                v[i, dim] = math.sin(t / (10000 ** (dim / output_dim)))
-            else:
-                v[i, dim] = math.cos(t / (10000 ** ((dim - 1) / output_dim)))
-    return v
+def pos_encoding(timesteps: torch.Tensor, output_dim: int) -> torch.Tensor:
+    """
+    ベクトル化された positional encoding (sin/cos) を GPU 上で高速に計算
+    timesteps: Tensor of shape [B, 1] or [B]  dtype torch.float32 or torch.int64
+    output_dim: embedding dimension
+    returns: Tensor [B, output_dim]
+    """
+    if timesteps.dim() == 1:
+        timesteps = timesteps.unsqueeze(1).to(torch.float32)
+    else:
+        timesteps = timesteps.to(torch.float32)
+    device = timesteps.device
+    B = timesteps.size(0)
+    # 角度レートの計算
+    dims = torch.arange(output_dim, device=device, dtype=torch.float32)
+    inv_freq = 1.0 / (10000 ** (dims / output_dim))  # shape [output_dim]
+    # timesteps を broadcast
+    angles = timesteps * inv_freq.unsqueeze(0)  # shape [B, output_dim]
+    # sin を偶数 idx, cos を奇数 idx に適用
+    pe = torch.empty_like(angles)
+    pe[:, 0::2] = torch.sin(angles[:, 0::2])
+    pe[:, 1::2] = torch.cos(angles[:, 1::2])
+    return pe
 
 
 class UNetConvBlock_PosEnc(nn.Module):
@@ -379,20 +391,21 @@ class UNetConvBlock_PosEnc(nn.Module):
         super().__init__()
         self.block = nn.Sequential(
             nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1, padding_mode="circular"),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.Conv1d(out_channels, out_channels, kernel_size=3, padding=1, padding_mode="circular"),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
             nn.Conv1d(out_channels, out_channels, kernel_size=3, padding=1, padding_mode="circular"),
-            nn.LeakyReLU(),
+            nn.LeakyReLU(inplace=True),
         )
         self.time_mlp = nn.Sequential(
             nn.Linear(time_embed_dim, in_channels),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Linear(in_channels, in_channels),
         )
 
     def forward(self, x: torch.Tensor, t_emb: torch.Tensor) -> torch.Tensor:
-        emb = self.time_mlp(t_emb).unsqueeze(-1).expand(-1, -1, x.size(-1))
+        # t_emb: [B, time_embed_dim]
+        emb = self.time_mlp(t_emb).unsqueeze(-1).expand(-1, -1, x.size(-1))  # [B, in_channels, L]
         return self.block(x + emb)
 
 
@@ -412,7 +425,7 @@ class ConditionalUNet_PosEnc(nn.Module):
         # ラベル埋め込み (Cl と t)
         self.label_embedder = nn.Sequential(
             nn.Linear(label_dim, time_embed_dim),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Linear(time_embed_dim, time_embed_dim),
         )
 
@@ -428,16 +441,16 @@ class ConditionalUNet_PosEnc(nn.Module):
 
         # Projection convs after interpolation
         self.upproj4 = nn.Conv1d(1024, 512, kernel_size=1)
-        self.upblock4 = UNetConvBlock_PosEnc(1024, 512, time_embed_dim)
+        self.upblock4 = UNetConvBlock_PosEnc(512 * 2, 512, time_embed_dim)
 
         self.upproj3 = nn.Conv1d(512, 256, kernel_size=1)
-        self.upblock3 = UNetConvBlock_PosEnc(512, 256, time_embed_dim)
+        self.upblock3 = UNetConvBlock_PosEnc(256 * 2, 256, time_embed_dim)
 
         self.upproj2 = nn.Conv1d(256, 128, kernel_size=1)
-        self.upblock2 = UNetConvBlock_PosEnc(256, 128, time_embed_dim)
+        self.upblock2 = UNetConvBlock_PosEnc(128 * 2, 128, time_embed_dim)
 
         self.upproj1 = nn.Conv1d(128, 64, kernel_size=1)
-        self.upblock1 = UNetConvBlock_PosEnc(128, 64, time_embed_dim)
+        self.upblock1 = UNetConvBlock_PosEnc(64 * 2, 64, time_embed_dim)
 
         # Output layer
         if output_mode == "conv1x1":
@@ -451,13 +464,13 @@ class ConditionalUNet_PosEnc(nn.Module):
             else:
                 self.output_layer = nn.Sequential(
                     nn.Linear(flat_dim, 2048),
-                    nn.LeakyReLU(),
+                    nn.LeakyReLU(inplace=True),
                     nn.Linear(2048, 2048),
-                    nn.LeakyReLU(),
+                    nn.LeakyReLU(inplace=True),
                     nn.Linear(2048, 2048),
-                    nn.LeakyReLU(),
+                    nn.LeakyReLU(inplace=True),
                     nn.Linear(2048, 1024),
-                    nn.LeakyReLU(),
+                    nn.LeakyReLU(inplace=True),
                     nn.Linear(1024, in_channels * 248),
                 )
         else:
@@ -471,14 +484,13 @@ class ConditionalUNet_PosEnc(nn.Module):
         uncond_mask: torch.Tensor = None,
     ) -> torch.Tensor:
         # t, c を float tensor に
-        if t.dim() == 1:
-            t = t.unsqueeze(1)
-        t = t.float()
-        c = c.float()
+        t = t.view(-1, 1).to(x.dtype)
+        c = c.to(x.dtype)
 
         # Positional encoding + label embedding
-        t_emb = pos_encoding(t, self.time_embed_dim, device=x.device)
-        c_emb = self.label_embedder(c)
+        t_emb = pos_encoding(t, self.time_embed_dim)  # [B, time_embed_dim]
+        t_emb = t_emb.to(x.device)
+        c_emb = self.label_embedder(c.to(x.device))
         t_emb = t_emb + c_emb
 
         # Downsampling
