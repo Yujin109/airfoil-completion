@@ -26,13 +26,19 @@ import wandb
 wandb.login(key=os.environ["WANDB_API_KEY"])
 
 # ハイパーパラメータなどの設定
-execution_name = "252422-002:Unet+CFG(none)+positional-e"
+execution_name = "252425-001:ResUnet(3-layer)+CFG(none)+pos-enc+beta_end0.05"
 num_epochs = 2000
 initial_lr = 2e-4
 b1 = 0.0
 b2 = 0.9
 batch_size = 32
-diffusion_params = {"num_timesteps": 500, "beta_start": 1e-4, "beta_end": 2e-2}
+diffusion_params = {
+    "num_timesteps": 500,
+    "beta_start": 1e-4,
+    "beta_end": 5e-2,
+    "beta_schedule": "linear",  # "linear" or "cosine"
+    "cosine_s": 0.008,
+}
 output_mode = "conv3x3"
 guidance_scale = 2.0  # Classfier-Free Guidance スケール
 p_uncond = 0.1
@@ -54,7 +60,7 @@ wandb.init(
         "p_uncond": p_uncond,
         "evaluation_interval": evaluation_interval,
         "dataset_prefix": "NACA&Joukowski",
-        "memo": "optimizerをAdamに変更. Classifier-Free Guidance追加(null) モデルをResidualUNetに変更. ",
+        "memo": "",
     },
 )
 config = wandb.config
@@ -239,6 +245,8 @@ class UNetResBlock(nn.Module):
         # 残差経路
         self.block = nn.Sequential(
             nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1, padding_mode="circular"),
+            nn.LeakyReLU(),
+            nn.Conv1d(out_channels, out_channels, kernel_size=3, padding=1, padding_mode="circular"),
             nn.LeakyReLU(),
             nn.Conv1d(out_channels, out_channels, kernel_size=3, padding=1, padding_mode="circular"),
         )
@@ -533,17 +541,207 @@ class ConditionalUNet_PosEnc(nn.Module):
             return out.view(B, self.in_channels, -1)
 
 
+class UNetResBlock_PosEnc(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, time_embed_dim: int):
+        super().__init__()
+        self.conv_block = nn.Sequential(
+            nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1, padding_mode="circular"),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv1d(out_channels, out_channels, kernel_size=3, padding=1, padding_mode="circular"),
+            nn.LeakyReLU(inplace=True),
+            nn.Conv1d(out_channels, out_channels, kernel_size=3, padding=1, padding_mode="circular"),
+        )
+        self.time_mlp = nn.Sequential(
+            nn.Linear(time_embed_dim, in_channels),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_channels, in_channels),
+        )
+        # residual 用に in/out チャネル不一致を整える 1x1 Conv
+        self.res_conv = (
+            nn.Identity() if in_channels == out_channels else nn.Conv1d(in_channels, out_channels, kernel_size=1)
+        )
+
+        self.final_activation = nn.LeakyReLU(inplace=True)
+
+    def forward(self, x: torch.Tensor, t_emb: torch.Tensor) -> torch.Tensor:
+        # t_emb: [B, time_embed_dim]
+        emb = self.time_mlp(t_emb).unsqueeze(-1).expand(-1, -1, x.size(-1))  # [B, in_channels, L]
+        x_in = x + emb
+        out = self.conv_block(x_in)
+        res = self.res_conv(x)
+        return self.final_activation(out + res)
+
+
+class ConditionalResidualUNet_PosEnc(nn.Module):
+    def __init__(
+        self,
+        in_channels: int = 2,
+        label_dim: int = 1,
+        time_embed_dim: int = 100,
+        output_mode: str = "conv3x3",
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.time_embed_dim = time_embed_dim
+        self.output_mode = output_mode
+
+        # ラベル埋め込み (Cl と t)
+        self.label_embedder = nn.Sequential(
+            nn.Linear(label_dim, time_embed_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(time_embed_dim, time_embed_dim),
+        )
+
+        # Downsampling blocks
+        self.down1 = UNetResBlock_PosEnc(in_channels, 64, time_embed_dim)
+        self.down2 = UNetResBlock_PosEnc(64, 128, time_embed_dim)
+        self.down3 = UNetResBlock_PosEnc(128, 256, time_embed_dim)
+        self.down4 = UNetResBlock_PosEnc(256, 512, time_embed_dim)
+        self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
+
+        # Bottleneck
+        self.bottleneck = UNetResBlock_PosEnc(512, 1024, time_embed_dim)
+
+        # Projection convs after interpolation
+        self.upproj4 = nn.Conv1d(1024, 512, kernel_size=1)
+        self.upblock4 = UNetResBlock_PosEnc(512 * 2, 512, time_embed_dim)
+
+        self.upproj3 = nn.Conv1d(512, 256, kernel_size=1)
+        self.upblock3 = UNetResBlock_PosEnc(256 * 2, 256, time_embed_dim)
+
+        self.upproj2 = nn.Conv1d(256, 128, kernel_size=1)
+        self.upblock2 = UNetResBlock_PosEnc(128 * 2, 128, time_embed_dim)
+
+        self.upproj1 = nn.Conv1d(128, 64, kernel_size=1)
+        self.upblock1 = UNetResBlock_PosEnc(64 * 2, 64, time_embed_dim)
+
+        # Output layer
+        if output_mode == "conv1x1":
+            self.output_layer = nn.Conv1d(64, in_channels, kernel_size=1)
+        elif output_mode == "conv3x3":
+            self.output_layer = nn.Conv1d(64, in_channels, kernel_size=3, padding=1, padding_mode="circular")
+        elif output_mode in ["fc", "fc_nn"]:
+            flat_dim = 64 * 248
+            if output_mode == "fc":
+                self.output_layer = nn.Linear(flat_dim, in_channels * 248)
+            else:
+                self.output_layer = nn.Sequential(
+                    nn.Linear(flat_dim, 2048),
+                    nn.LeakyReLU(inplace=True),
+                    nn.Linear(2048, 2048),
+                    nn.LeakyReLU(inplace=True),
+                    nn.Linear(2048, 2048),
+                    nn.LeakyReLU(inplace=True),
+                    nn.Linear(2048, 1024),
+                    nn.LeakyReLU(inplace=True),
+                    nn.Linear(1024, in_channels * 248),
+                )
+        else:
+            raise ValueError(f"Invalid output_mode: {output_mode}")
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        c: torch.Tensor,
+        t: torch.Tensor,
+        uncond_mask: torch.Tensor = None,
+    ) -> torch.Tensor:
+        # t, c を float tensor に
+        t = t.view(-1, 1).to(x.dtype)
+        c = c.to(x.dtype)
+
+        # Positional encoding + label embedding
+        t_emb = pos_encoding(t, self.time_embed_dim)  # [B, time_embed_dim]
+        t_emb = t_emb.to(x.device)
+        c_emb = self.label_embedder(c.to(x.device))
+        t_emb = t_emb + c_emb
+
+        # Downsampling
+        d1 = self.down1(x, t_emb)
+        d2 = self.down2(self.pool(d1), t_emb)
+        d3 = self.down3(self.pool(d2), t_emb)
+        d4 = self.down4(self.pool(d3), t_emb)
+
+        # Bottleneck
+        bottleneck = self.bottleneck(self.pool(d4), t_emb)
+
+        # Upsampling + skip connections via interpolation
+        u4 = F.interpolate(bottleneck, size=d4.size(-1), mode="linear", align_corners=False)
+        u4 = self.upproj4(u4)
+        u4 = torch.cat([u4, d4], dim=1)
+        u4 = self.upblock4(u4, t_emb)
+
+        u3 = F.interpolate(u4, size=d3.size(-1), mode="linear", align_corners=False)
+        u3 = self.upproj3(u3)
+        u3 = torch.cat([u3, d3], dim=1)
+        u3 = self.upblock3(u3, t_emb)
+
+        u2 = F.interpolate(u3, size=d2.size(-1), mode="linear", align_corners=False)
+        u2 = self.upproj2(u2)
+        u2 = torch.cat([u2, d2], dim=1)
+        u2 = self.upblock2(u2, t_emb)
+
+        u1 = F.interpolate(u2, size=d1.size(-1), mode="linear", align_corners=False)
+        u1 = self.upproj1(u1)
+        u1 = torch.cat([u1, d1], dim=1)
+        u1 = self.upblock1(u1, t_emb)
+
+        # Output
+        if self.output_mode in ["conv1x1", "conv3x3"]:
+            return self.output_layer(u1)
+        else:
+            B = x.size(0)
+            out = u1.view(B, -1)
+            out = self.output_layer(out)
+            return out.view(B, self.in_channels, -1)
+
+
 # ============================================================
 # 2. Diffuserクラスの定義 (Diffusion Process, 逆拡散)
 # ============================================================
 class Diffuser:
-    def __init__(self, num_timesteps=500, beta_start=1e-4, beta_end=2e-2, device="cpu", guidance_scale=1.0):
+    def __init__(
+        self,
+        num_timesteps: int = 500,
+        beta_start: float = 1e-4,
+        beta_end: float = 2e-2,
+        device: str = "cpu",
+        guidance_scale: float = 1.0,
+        beta_schedule: str = "linear",  # "linear" or "cosine"
+        cosine_s: float = 0.008,  # cosine スケジュールのシフト量
+    ):
         self.num_timesteps = num_timesteps
         self.device = device
         self.guidance_scale = guidance_scale
-        self.betas = torch.linspace(beta_start, beta_end, num_timesteps, device=device)
-        self.alphas = 1 - self.betas
+
+        # β の生成
+        if beta_schedule == "linear":
+            self.betas = torch.linspace(beta_start, beta_end, num_timesteps, device=device)
+        elif beta_schedule == "cosine":
+            self.betas = self._cosine_beta_schedule(num_timesteps, s=cosine_s).to(device)
+        else:
+            raise ValueError(f"Unknown beta_schedule: {beta_schedule}")
+
+        # α, ᾱ を計算
+        self.alphas = 1.0 - self.betas
         self.alpha_bars = torch.cumprod(self.alphas, dim=0)
+
+    @staticmethod
+    def _cosine_beta_schedule(num_timesteps: int, s: float = 0.008) -> torch.Tensor:
+        """
+        Improved DDPM の論文で提案された Cosine スケジュールです。
+        ᾱ_t = cos(((t/T + s) / (1+s)) * π/2)^2 を用い、
+        β_t = 1 - ᾱ_t / ᾱ_{t-1} で定義します。
+        """
+        steps = num_timesteps + 1
+        t = torch.linspace(0, num_timesteps, steps)
+        # ᾱ の前段階
+        alphas_cumprod = torch.cos(((t / num_timesteps + s) / (1 + s)) * math.pi / 2) ** 2
+        alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+        # β を差分で求める
+        betas = 1.0 - alphas_cumprod[1:] / alphas_cumprod[:-1]
+        # 数値的に不安定な極端な値をクリップ
+        return torch.clamp(betas, max=0.999)
 
     def add_noise(self, x_0, t):
         T = self.num_timesteps
@@ -730,6 +928,21 @@ def cl_loss_function(cl_conditioned, cl_evaluated):
     return np.mean((cl_conditioned - cl_evaluated) ** 2)
 
 
+def compute_generation_diversity(generated_batch):
+    """
+    Args:
+        generated_batch: torch.Tensor of shape [N, 2, 248]
+    Returns:
+        diversity: float, 分散値 (L2ノルムベース)
+    """
+    N = generated_batch.size(0)
+    flattened = generated_batch.view(N, -1)  # [N, 496]
+    mean_vector = torch.mean(flattened, dim=0, keepdim=True)  # [1, 496]
+    diffs = flattened - mean_vector  # [N, 496]
+    diversity = torch.mean(torch.norm(diffs, dim=1) ** 2).item()
+    return diversity
+
+
 def evaluate_generated_samples(samples, conditioned_cls, dataset):
     convexity_losses = []
     smoothness_losses = []
@@ -795,7 +1008,13 @@ loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # model = ConditionalUNet(in_channels=2, label_dim=2, output_mode=output_mode).to(device)
 # model = ConditionalResidualUNet(in_channels=2, label_dim=2, output_mode=output_mode).to(device)
-model = ConditionalUNet_PosEnc(
+# model = ConditionalUNet_PosEnc(
+#     in_channels=2,
+#     label_dim=1,
+#     time_embed_dim=100,
+#     output_mode=output_mode,
+# ).to(device)
+model = ConditionalResidualUNet_PosEnc(
     in_channels=2,
     label_dim=1,
     time_embed_dim=100,
@@ -806,6 +1025,8 @@ diffuser = Diffuser(
     num_timesteps=diffusion_params["num_timesteps"],
     beta_start=diffusion_params["beta_start"],
     beta_end=diffusion_params["beta_end"],
+    beta_schedule=diffusion_params["beta_schedule"],
+    cosine_s=diffusion_params["cosine_s"],
     device=device,
     guidance_scale=guidance_scale,
 )
@@ -840,6 +1061,7 @@ eval_history = {
     "cl_loss_mean": [],
     "cl_convergence_ratio_raw": [],
     "cl_convergence_ratio_strict": [],
+    "generation_diversity_mean": [],
     # "MWT_sampling_sec": [],
     f"EP_time_sec_for_last_{evaluation_interval}epochs": [],
 }
@@ -910,11 +1132,17 @@ for epoch in range(1, num_epochs + 1):
             cl_loss_list = []
             convergence_ratios_raw = []
             convergence_ratios_strict = []
+            diversity_list = []
             for cl_val in tqdm(cl_eval_values, total=len(cl_eval_values)):
                 # for cl_val in cl_eval_values:
                 cond = torch.tensor([[cl_val, 0.0]] * num_samples_for_each_cl, dtype=torch.float32, device=device)
                 cond_norm = dataset.normalize_cl(cond)
                 generated = diffuser.generate_from_labels(model, cond_norm, coord_shape=(2, 248))
+
+                # 多様性の追加評価
+                diversity = compute_generation_diversity(generated)
+                diversity_list.append(diversity)
+
                 cl_conditioned = np.array([cl_val] * num_samples_for_each_cl)
                 conv_l, smooth_l, cl_l, conv_ratio_raw, conv_ratio_strict = evaluate_generated_samples(
                     generated, cl_conditioned, dataset
@@ -931,6 +1159,7 @@ for epoch in range(1, num_epochs + 1):
                 "cl_loss_mean": np.mean(cl_loss_list),
                 "cl_convergence_ratio_raw": np.mean(convergence_ratios_raw),
                 "cl_convergence_ratio_strict": np.mean(convergence_ratios_strict),
+                "generation_diversity_mean": np.mean(diversity_list),
             }
 
             # # MWT Sampling: 1サンプル生成の平均wall time (例として100サンプル)
