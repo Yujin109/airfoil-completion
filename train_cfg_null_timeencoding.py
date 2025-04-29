@@ -26,7 +26,7 @@ import wandb
 wandb.login(key=os.environ["WANDB_API_KEY"])
 
 # ハイパーパラメータなどの設定
-execution_name = "252425-001:ResUnet(3-layer)+CFG(none)+pos-enc+beta_end0.05"
+execution_name = "250426-001:CFG(0)+pos-enc+beta_end0.05"
 num_epochs = 2000
 initial_lr = 2e-4
 b1 = 0.0
@@ -37,7 +37,7 @@ diffusion_params = {
     "beta_start": 1e-4,
     "beta_end": 5e-2,
     "beta_schedule": "linear",  # "linear" or "cosine"
-    "cosine_s": 0.008,
+    "cosine_s": 0,  # default=0.008
 }
 output_mode = "conv3x3"
 guidance_scale = 2.0  # Classfier-Free Guidance スケール
@@ -499,6 +499,11 @@ class ConditionalUNet_PosEnc(nn.Module):
         t_emb = pos_encoding(t, self.time_embed_dim)  # [B, time_embed_dim]
         t_emb = t_emb.to(x.device)
         c_emb = self.label_embedder(c.to(x.device))
+        if uncond_mask is not None:
+            # uncond_mask==True のサンプルについて c_emb を 0 に
+            mask = (~uncond_mask).to(x.dtype).unsqueeze(1)  # [B, 1]
+            c_emb = c_emb * mask  # broadcasting で [B, time_embed_dim]
+        # 条件付き or 無条件の埋め込みを合成
         t_emb = t_emb + c_emb
 
         # Downsampling
@@ -654,6 +659,11 @@ class ConditionalResidualUNet_PosEnc(nn.Module):
         t_emb = pos_encoding(t, self.time_embed_dim)  # [B, time_embed_dim]
         t_emb = t_emb.to(x.device)
         c_emb = self.label_embedder(c.to(x.device))
+        if uncond_mask is not None:
+            # uncond_mask==True のサンプルについて c_emb を 0 に
+            mask = (~uncond_mask).to(x.dtype).unsqueeze(1)  # [B, 1]
+            c_emb = c_emb * mask  # broadcasting で [B, time_embed_dim]
+        # 条件付き or 無条件の埋め込みを合成
         t_emb = t_emb + c_emb
 
         # Downsampling
@@ -1008,18 +1018,18 @@ loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # model = ConditionalUNet(in_channels=2, label_dim=2, output_mode=output_mode).to(device)
 # model = ConditionalResidualUNet(in_channels=2, label_dim=2, output_mode=output_mode).to(device)
-# model = ConditionalUNet_PosEnc(
-#     in_channels=2,
-#     label_dim=1,
-#     time_embed_dim=100,
-#     output_mode=output_mode,
-# ).to(device)
-model = ConditionalResidualUNet_PosEnc(
+model = ConditionalUNet_PosEnc(
     in_channels=2,
     label_dim=1,
     time_embed_dim=100,
     output_mode=output_mode,
 ).to(device)
+# model = ConditionalResidualUNet_PosEnc(
+#     in_channels=2,
+#     label_dim=1,
+#     time_embed_dim=100,
+#     output_mode=output_mode,
+# ).to(device)
 
 diffuser = Diffuser(
     num_timesteps=diffusion_params["num_timesteps"],
