@@ -26,7 +26,7 @@ import wandb
 wandb.login(key=os.environ["WANDB_API_KEY"])
 
 # ハイパーパラメータなどの設定
-execution_name = "250426-001:CFG(0)+pos-enc+beta_end0.05"
+execution_name = "250430-001:CFG(none-true)+pos-enc+beta_end0.05"
 num_epochs = 2000
 initial_lr = 2e-4
 b1 = 0.0
@@ -436,6 +436,7 @@ class ConditionalUNet_PosEnc(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(time_embed_dim, time_embed_dim),
         )
+        self.null_label = nn.Parameter(torch.randn(time_embed_dim))
 
         # Downsampling blocks
         self.down1 = UNetConvBlock_PosEnc(in_channels, 64, time_embed_dim)
@@ -502,7 +503,9 @@ class ConditionalUNet_PosEnc(nn.Module):
         if uncond_mask is not None:
             # uncond_mask==True のサンプルについて c_emb を 0 に
             mask = (~uncond_mask).to(x.dtype).unsqueeze(1)  # [B, 1]
-            c_emb = c_emb * mask  # broadcasting で [B, time_embed_dim]
+            # c_emb = c_emb * mask  # broadcasting で [B, time_embed_dim]
+            null = self.null_label.unsqueeze(0).expand(x.shape[0], -1)
+            c_emb = c_emb * mask + null * (1 - mask)
         # 条件付き or 無条件の埋め込みを合成
         t_emb = t_emb + c_emb
 
