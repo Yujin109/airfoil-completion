@@ -589,14 +589,6 @@ class RePaintDiffuser(Diffuser):
                 elif next_t > t:
                     # forward jump
                     x = self.add_noise_onestep(x, t_tensor)
-                else:
-                    pass
-            # else:
-            #     # 最後のtはbackward jump
-            #     x_known, _ = self.add_noise(x_0=x_orig, t=t - 1)
-            #     x_unknown = self.denoise(model=model, x=x, t=t_tensor, c=c)
-            #     x = torch.where(mask, x_known, x_unknown)
-
         return x
 
 
