@@ -1,9 +1,7 @@
 import datetime
 import os
 
-import numpy as np
 import torch
-from tqdm import tqdm
 
 from config import (
     BATCH_SIZE,
