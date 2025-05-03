@@ -110,27 +110,45 @@ def main():
             model.eval()
             with torch.no_grad():
                 # Save training metrics
-                culcurated_metrics = evaluate_generated_samples_from_random_noise(
+                (
+                    culcurated_metrics,
+                    cls_conditioned_array,
+                    coords_generated_array,
+                ) = evaluate_generated_samples_from_random_noise(
                     model, diffuser, dataset, num_samples_for_each_cl=EVAL_NUM_SAMPLES_FOR_EACH_CL, device=DEVICE
                 )
                 wandb.log({**culcurated_metrics, "epoch": epoch})
                 # .txtファイルとして保存
-                with open(os.path.join(EVALUATION_METRICS_DIR, f"epoch_{epoch}.txt"), "w") as f:
+                with open(os.path.join(EVALUATION_METRICS_DIR, f"epoch_{epoch}_metrics.txt"), "w") as f:
                     for key, value in culcurated_metrics.items():
                         f.write(f"{key}: {value}\n")
+                # .npzファイルとして保存
+                np.savez(
+                    os.path.join(EVALUATION_METRICS_DIR, f"epoch_{epoch}_generated_data_for_metrics.npz"),
+                    cls_conditioned=cls_conditioned_array,
+                    coords_generated=coords_generated_array,
+                )
 
                 # Save generated samples
-                sample_plot_path = plot_generated_samples_from_random_noise(
-                    model,
-                    diffuser,
-                    dataset,
-                    num_samples_for_each_cl=PLOT_NUM_SAMPLES_FOR_EACH_CL,
-                    device=DEVICE,
-                    output_dirs=SAMPLES_DIR,
-                    epoch=epoch,
+                sample_plot_path, cls_conditioned_array, coords_generated_array = (
+                    plot_generated_samples_from_random_noise(
+                        model,
+                        diffuser,
+                        dataset,
+                        num_samples_for_each_cl=PLOT_NUM_SAMPLES_FOR_EACH_CL,
+                        device=DEVICE,
+                        output_dirs=SAMPLES_DIR,
+                        epoch=epoch,
+                    )
                 )
                 print(f"生成サンプルプロット保存: {sample_plot_path}")
                 wandb.log({"generated_samples": wandb.Image(sample_plot_path), "epoch": epoch})
+
+                np.savez(
+                    os.path.join(SAMPLES_DIR, f"epoch_{epoch}_generated_data_for_plot.npz"),
+                    cls_conditioned=cls_conditioned_array,
+                    coords_generated=coords_generated_array,
+                )
 
                 # Save intermediate model weights
                 intermediate_model_path = os.path.join(WEIGHTS_DIR, f"model_weights_epoch_{epoch}.pth")

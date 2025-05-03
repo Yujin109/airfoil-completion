@@ -1,6 +1,7 @@
 import datetime
 import os
 
+import numpy as np
 import torch
 
 from config import (
@@ -40,20 +41,29 @@ def main():
 
     with torch.no_grad():
 
-        # datetimeを使い、今日の日付を取得し、250501の形式に変換
-        today = datetime.datetime.now().strftime("%y%m%d")
+        # datetimeを使い、今日の時刻を取得し、2505010157Sの形式に変換
+        # 例: 2023年10月5日15時57分 -> 2310051557
+        timestamp = datetime.datetime.now().strftime("%y%m%d%H%M")
 
         # Save training metrics
-        culcurated_metrics = evaluate_generated_samples_from_random_noise(
-            model, diffuser, dataset, num_samples_for_each_cl=EVAL_NUM_SAMPLES_FOR_EACH_CL, device=DEVICE
+        culcurated_metrics, cls_conditioned_array, coords_generated_array = (
+            evaluate_generated_samples_from_random_noise(
+                model, diffuser, dataset, num_samples_for_each_cl=EVAL_NUM_SAMPLES_FOR_EACH_CL, device=DEVICE
+            )
         )
         # .txtファイルとして保存
-        with open(os.path.join(EVALUATION_METRICS_DIR, f"final_{today}.txt"), "w") as f:
+        with open(os.path.join(EVALUATION_METRICS_DIR, f"final_{timestamp}.txt"), "w") as f:
             for key, value in culcurated_metrics.items():
                 f.write(f"{key}: {value}\n")
+        # .npzファイルとして保存
+        np.savez(
+            os.path.join(EVALUATION_METRICS_DIR, f"final_{timestamp}_generated_data_for_metrics.npz"),
+            cls_conditioned=cls_conditioned_array,
+            coords_generated=coords_generated_array,
+        )
 
         # Save generated samples
-        sample_plot_path = plot_generated_samples_from_random_noise(
+        sample_plot_path, cls_conditioned_array, coords_generated_array = plot_generated_samples_from_random_noise(
             model,
             diffuser,
             dataset,
@@ -61,7 +71,12 @@ def main():
             device=DEVICE,
             output_dirs=SAMPLES_DIR,
             epoch=0,
-            suffix=f"_final_{today}",
+            suffix=f"_final_{timestamp}",
+        )
+        np.savez(
+            os.path.join(SAMPLES_DIR, f"final_{timestamp}_generated_data_for_plot.npz"),
+            cls_conditioned=cls_conditioned_array,
+            coords_generated=coords_generated_array,
         )
         print(f"生成サンプルプロット保存: {sample_plot_path}")
 

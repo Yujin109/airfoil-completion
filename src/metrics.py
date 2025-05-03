@@ -110,6 +110,9 @@ def evaluate_generated_samples_from_random_noise(
     convergence_ratios_strict = []
     diversity_list = []
 
+    cl_conditioned_list = []
+    coord_generated_list = []
+
     for cl_val in tqdm(cl_eval_values, total=len(cl_eval_values)):
         cond = torch.tensor([[cl_val, 0.0]] * num_samples_for_each_cl, dtype=torch.float32, device=device)
         cond_norm = dataset.normalize_cl(cond)
@@ -126,14 +129,21 @@ def evaluate_generated_samples_from_random_noise(
         convergence_ratios_strict.append(conv_ratio_strict)
         diversity_list.append(diversity)
 
-    return {
-        "convexity_loss_mean": np.mean(convexity_list),
-        "smoothness_loss_mean": np.mean(smoothness_list),
-        "cl_loss_mean": np.mean(cl_loss_list),
-        "cl_convergence_ratio_raw": np.mean(convergence_ratios_raw),
-        "cl_convergence_ratio_strict": np.mean(convergence_ratios_strict),
-        "generation_diversity_mean": np.mean(diversity_list),
-    }
+        cl_conditioned_list.append(cl_conditioned)
+        coord_generated_list.append(generated.cpu().numpy())
+
+    return (
+        {
+            "convexity_loss_mean": np.mean(convexity_list),
+            "smoothness_loss_mean": np.mean(smoothness_list),
+            "cl_loss_mean": np.mean(cl_loss_list),
+            "cl_convergence_ratio_raw": np.mean(convergence_ratios_raw),
+            "cl_convergence_ratio_strict": np.mean(convergence_ratios_strict),
+            "generation_diversity_mean": np.mean(diversity_list),
+        },
+        np.array(cl_conditioned_list),
+        np.array(coord_generated_list),
+    )
 
 
 def plot_generated_samples_from_random_noise(
@@ -151,6 +161,9 @@ def plot_generated_samples_from_random_noise(
         sample_plot_path = os.path.join(output_dirs, f"samples_epoch_{epoch}{suffix}.png")
     else:
         sample_plot_path = os.path.join(output_dirs, f"samples{suffix}.png")
+
+    cl_conditioned_list = []
+    coord_generated_list = []
 
     cl_plot_values = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
     fig, axs = plt.subplots(num_samples_for_each_cl, len(cl_plot_values), figsize=(20, 12))
@@ -172,7 +185,9 @@ def plot_generated_samples_from_random_noise(
             axs[row, col].set_title(f"CL: {cl_eval:.2f}\nConv: {conv_loss:.3f}", fontsize=8)
             axs[row, col].tick_params(labelsize=6)
             axs[row, col].grid(True)
+        cl_conditioned_list.append(np.array([cl_val] * num_samples_for_each_cl))
+        coord_generated_list.append(generated.cpu().numpy())
     plt.tight_layout()
     plt.savefig(sample_plot_path)
     plt.close()
-    return sample_plot_path
+    return sample_plot_path, np.array(cl_conditioned_list), np.array(coord_generated_list)
