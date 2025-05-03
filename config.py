@@ -8,6 +8,7 @@ load_dotenv()
 
 # Project settings
 EXECUTION_NAME = "250426-001:CFG(0)+pos-enc+beta_end0.05"
+# ["250426-001:CFG(0)+pos-enc+beta_end0.05"]
 PROJECT_NAME = "airfoil_diffusion"
 
 # Model selection

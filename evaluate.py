@@ -41,14 +41,6 @@ def main():
     model.eval()
     diffuser = Diffuser(**DIFFUSION_PARAMS, device=DEVICE, guidance_scale=GUIDANCE_SCALE, model_name=MODEL_NAME)
 
-    cl_values = np.linspace(0.5, 1.2, 71)
-    for cl_val in tqdm(cl_values):
-        cond = torch.tensor([[cl_val]], device=DEVICE).float()
-        cond_norm = dataset.normalize_cl(cond)
-        samples = diffuser.generate_from_labels(model, cond_norm)
-        res = evaluate_generated_samples(samples, np.array([cl_val] * samples.size(0)), dataset)
-        print(f"CL {cl_val:.2f}:", res)
-
     with torch.no_grad():
 
         # datetimeを使い、今日の日付を取得し、250501の形式に変換

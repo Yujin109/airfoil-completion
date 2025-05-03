@@ -5,8 +5,8 @@ import torch
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from data import AirfoilDataset
-from diffusion import Diffuser
+from src.data import AirfoilDataset
+from src.diffusion import Diffuser
 from src.xfoil_utils import get_cl
 
 
