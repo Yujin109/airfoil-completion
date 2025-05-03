@@ -19,7 +19,6 @@ from config import (
 from src.data import get_dataloader
 from src.diffusion import Diffuser
 from src.metrics import (
-    evaluate_generated_samples,
     evaluate_generated_samples_from_random_noise,
     plot_generated_samples_from_random_noise,
 )

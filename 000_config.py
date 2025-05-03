@@ -32,7 +32,7 @@ DIFFUSION_PARAMS = {
 }
 
 # Output settings
-OUTPUT_MODE = "conv3x3"  # ["conv3x3", "conv1x1", "fc", "fc_nn"]
+OUTPUT_MODE = "conv3x3"  # ["co nv3x3", "conv1x1", "fc", "fc_nn"]
 GUIDANCE_SCALE = 2.0  # 2.0 (CFG) or 1.0 (normal conditional) or 0.0 (unconditional)
 P_UNCOND = 0.1
 EVALUATION_INTERVAL = 500

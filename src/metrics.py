@@ -83,7 +83,6 @@ def evaluate_generated_samples(samples, conditioned_cls, dataset):
         convexity_losses.append(convexity_loss(denorm))
         smoothness_losses.append(smoothness_loss(denorm))
         cl_losses.append(cl_val)
-        convergence_raw += converged
         if (convexity_losses[-1] < 0.1 and smoothness_losses[-1] < 0.1 and cl_val < 0.1) and converged:
             convergence_strict += 1
     return (
