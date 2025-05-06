@@ -21,6 +21,7 @@ from config import (
 )
 from src.data import AirfoilDataset
 from src.diffusion import RePaintDiffuser
+from src.metrics import smoothness_phi
 from src.models.model_registry import MODEL_REGISTRY
 from src.xfoil_utils import get_cl
 
@@ -43,7 +44,11 @@ def plot_inpaint(orig, rep, mask, ax, title=""):
     m = mask
     ax.plot(np.ma.array(orig[0], mask=~m), np.ma.array(orig[1], mask=~m), label="known")
     ax.plot(np.ma.array(rep[0], mask=m), np.ma.array(rep[1], mask=m), label="inpaint")
-    ax.set_title(title, fontsize=8)
+    ax.set_title(title, fontsize=12)
+    ax.set_aspect("equal", "box")
+    ax.set_xlim(-0.1, 1.1)
+    ax.set_ylim(-0.2, 0.35)
+    ax.tick_params(labelsize=9)
     ax.grid(True)
 
 
@@ -103,7 +108,11 @@ def main():
         row = i // len(CLUSTERS)
         col = i % len(CLUSTERS)
         ax = axes[row, col]
-        title = f"Cl_in={original_cls[idx]:.3f}\nCl_out={cl_out_list[i]:.3f}"
+        if np.isnan(cl_out_list[i]):
+            cl_ape = np.nan
+        else:
+            cl_ape = abs((cl_out_list[i] - original_cls[idx]) / original_cls[idx] * 100)
+        title = f"Cl_in: {original_cls[idx]:.3f}\nCl_out: {cl_out_list[i]:.3f}\nAPE: {cl_ape:.1f}"
         plot_inpaint(orig_denorm[i], rep_denorm[i], masks[i].cpu().numpy(), ax, title)
     plt.tight_layout()
 
@@ -119,11 +128,31 @@ def main():
     metrics = dict()
     # MSE on cls
     cl_se_list = []
+    cl_ape_list = []
+    convergence_count = 0
+    smoothness_phi_list = []
     for i, idx in enumerate(selected):
         cl_out = cl_out_list[i]
         cl_in = original_cls[idx]
-        cl_se_list.append((cl_out - cl_in) ** 2)
-    metrics["cl_loss_mean"] = np.mean(cl_se_list)
+        coord = dataset.coords_tensor[idx].cpu().numpy()
+        if np.isnan(cl_out):
+            cl_se_list.append(np.nan)
+            cl_ape_list.append(np.nan)
+        else:
+            cl_se_list.append((cl_out - cl_in) ** 2)
+            cl_ape_list.append(abs((cl_out - cl_in) / cl_in * 100))
+            convergence_count += 1
+        smoothness_phi_list.append(smoothness_phi(coord))
+    metrics["cl_mse_mean"] = np.nanmean(cl_se_list)
+    metrics["cl_mape_mean"] = np.nanmean(cl_ape_list)
+    metrics["cl_convergence_ratio"] = convergence_count / len(selected)
+    metrics["cl_smoothness_phi_mean"] = np.nanmean(smoothness_phi_list)
+
+    for i, idx in enumerate(selected):
+        cl_out = cl_out_list[i]
+        cl_in = original_cls[idx]
+        cl_ape_list.append(abs((cl_out - cl_in) / cl_in * 100))
+    metrics["cl_ape_mean"] = np.mean(cl_ape_list)
 
     # .txtファイルとして保存
     with open(os.path.join(REPAINT_DIR, f"{date_str}_R{NUM_RESAMPLING}_J{JUMP_LENGTH}_M{MASK_TYPE}.txt"), "w") as f:

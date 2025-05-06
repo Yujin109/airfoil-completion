@@ -107,4 +107,4 @@ REPAINT_DIR = os.path.join(RESULTS_DIR, "repaint")
 MASK_TYPE = "m_upcenter"  # ["m_upcenter", "m_head", "m_tail"]
 
 # plot settings
-FIG_SIZE = (20, 12)
+FIG_SIZE = (30, 14)
