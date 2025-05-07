@@ -105,10 +105,10 @@ SEED = 42
 # Output paths
 REPAINT_DIR = os.path.join(RESULTS_DIR, "repaint")
 MASK_TYPE = "head"  # ["middle", "head", "tail"]
-MISSING_POINTS = 224  # 0~248
+MISSING_POINTS = 124  # 0~248
 
 # plot settings
 FIG_SIZE = (30, 14)
 SHOW_KNOWN_MISSING = False
 
-CL_SHIFT = None
+CL_SHIFT = 0.1
