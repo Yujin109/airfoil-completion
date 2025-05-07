@@ -94,8 +94,8 @@ WEIGHTS_DIR = os.path.join(RESULTS_DIR, "weights")
 # RePaint settings ----------------------------------------
 
 # RePaint settings
-NUM_RESAMPLING = 1
-JUMP_LENGTH = 1
+NUM_RESAMPLING = 10
+JUMP_LENGTH = 10
 
 # Dataset and inpainting settings
 CLUSTERS = [(0.5, 0.6), (0.6, 0.7), (0.7, 0.8), (0.8, 0.9), (0.9, 1.0), (1.0, 1.1), (1.1, 1.2)]
@@ -104,7 +104,11 @@ SEED = 42
 
 # Output paths
 REPAINT_DIR = os.path.join(RESULTS_DIR, "repaint")
-MASK_TYPE = "m_upcenter"  # ["m_upcenter", "m_head", "m_tail"]
+MASK_TYPE = "head"  # ["middle", "head", "tail"]
+MISSING_POINTS = 224  # 0~248
 
 # plot settings
 FIG_SIZE = (30, 14)
+SHOW_KNOWN_MISSING = False
+
+CL_SHIFT = None

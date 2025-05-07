@@ -6,17 +6,20 @@ import numpy as np
 import torch
 
 from config import (
+    CL_SHIFT,
     CLUSTERS,
     DIFFUSION_PARAMS,
     FIG_SIZE,
     GUIDANCE_SCALE,
     JUMP_LENGTH,
     MASK_TYPE,
+    MISSING_POINTS,
     MODEL_NAME,
     NUM_RESAMPLING,
     REPAINT_DIR,
     SAMPLES_PER_CLUSTER,
     SEED,
+    SHOW_KNOWN_MISSING,
     WEIGHT_PATH,
 )
 from src.data import AirfoilDataset
@@ -26,24 +29,44 @@ from src.models.model_registry import MODEL_REGISTRY
 from src.xfoil_utils import get_cl
 
 
-def mask_manual(pattern="upper_center", length=248, missing=20):
-    if pattern == "m_upcenter":
+def mask_manual(pattern="head", length=248, missing=10):
+    if pattern == "head":
+        assert missing % 2 == 0
         m = np.ones(length, dtype=bool)
         start = (length - missing) // 2
         m[start : start + missing] = False
-    elif pattern == "m_head":
+    elif pattern == "tail":
+        assert missing % 2 == 0
         m = np.ones(length, dtype=bool)
-        m[:missing] = False
-    elif pattern == "m_tail":
+        miss_len = missing // 2
+        rest = length - missing
+        m[:miss_len] = False
+        m[miss_len + rest :] = False
+    elif pattern == "middle":
+        assert missing % 4 == 0
         m = np.ones(length, dtype=bool)
-        m[-missing:] = False
+        miss_len = missing // 4
+        m[62 - miss_len : 62 + miss_len] = False
+        m[186 - miss_len : 186 + miss_len] = False
     return m
 
 
-def plot_inpaint(orig, rep, mask, ax, title=""):
+def plot_inpaint(orig, rep, mask, ax, title="", show_known_missing=False):
     m = mask
-    ax.plot(np.ma.array(orig[0], mask=~m), np.ma.array(orig[1], mask=~m), label="known")
-    ax.plot(np.ma.array(rep[0], mask=m), np.ma.array(rep[1], mask=m), label="inpaint")
+    ax.plot(
+        np.ma.array(orig[0], mask=~m), np.ma.array(orig[1], mask=~m), label="known", linestyle="-", color="tab:blue"
+    )
+    ax.plot(
+        np.ma.array(rep[0], mask=m), np.ma.array(rep[1], mask=m), label="inpaint", linestyle="-", color="tab:orange"
+    )
+    if show_known_missing:
+        ax.plot(
+            np.ma.array(orig[0], mask=m),
+            np.ma.array(orig[1], mask=m),
+            label="known_missing",
+            linestyle="--",
+            color="tab:blue",
+        )
     ax.set_title(title, fontsize=12)
     ax.set_aspect("equal", "box")
     ax.set_xlim(-0.1, 1.1)
@@ -88,7 +111,14 @@ def main():
     # prepare inputs
     coords_batch = dataset.coords_tensor[selected].to(device)
     cls_batch = dataset.cls_tensor[selected].to(device)
-    masks = torch.stack([torch.from_numpy(mask_manual(pattern=MASK_TYPE)) for _ in selected], dim=0).to(device)
+    masks = torch.stack(
+        [torch.from_numpy(mask_manual(pattern=MASK_TYPE, missing=MISSING_POINTS)) for _ in selected], dim=0
+    ).to(device)
+
+    if CL_SHIFT is not None:
+        cls_batch += CL_SHIFT / dataset.cl_std
+        for idx in selected:
+            original_cls[idx] = original_cls[idx] + CL_SHIFT
 
     # run RePaint inpainting
     repainted = diffuser.repaint(model, coords_batch, masks, cls_batch)
@@ -113,12 +143,12 @@ def main():
         else:
             cl_ape = abs((cl_out_list[i] - original_cls[idx]) / original_cls[idx] * 100)
         title = f"Cl_in: {original_cls[idx]:.3f}\nCl_out: {cl_out_list[i]:.3f}\nAPE: {cl_ape:.1f}"
-        plot_inpaint(orig_denorm[i], rep_denorm[i], masks[i].cpu().numpy(), ax, title)
+        plot_inpaint(orig_denorm[i], rep_denorm[i], masks[i].cpu().numpy(), ax, title, SHOW_KNOWN_MISSING)
     plt.tight_layout()
 
     # save figure
-    date_str = datetime.datetime.now().strftime("%y%m%d")
-    fname = f"{date_str}_R{NUM_RESAMPLING}_J{JUMP_LENGTH}_M{MASK_TYPE}.png"
+    date_str = datetime.datetime.now().strftime("%y%m%d%H%M")
+    fname = f"{date_str}_R:{NUM_RESAMPLING}_J:{JUMP_LENGTH}_M:{MASK_TYPE}_P:{MISSING_POINTS}_SHIFT:{CL_SHIFT}.png"
     fpath = os.path.join(REPAINT_DIR, fname)
     fig.savefig(fpath, dpi=300)
     print(f"[Saved sample images] {fpath}")
@@ -155,7 +185,13 @@ def main():
     metrics["cl_ape_mean"] = np.mean(cl_ape_list)
 
     # .txtファイルとして保存
-    with open(os.path.join(REPAINT_DIR, f"{date_str}_R{NUM_RESAMPLING}_J{JUMP_LENGTH}_M{MASK_TYPE}.txt"), "w") as f:
+    with open(
+        os.path.join(
+            REPAINT_DIR,
+            f"{date_str}_R:{NUM_RESAMPLING}_J:{JUMP_LENGTH}_M:{MASK_TYPE}_P:{MISSING_POINTS}_SHIFT:{CL_SHIFT}.txt",
+        ),
+        "w",
+    ) as f:
         for key, value in metrics.items():
             f.write(f"{key}: {value}\n")
 
