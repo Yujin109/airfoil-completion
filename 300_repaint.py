@@ -1,6 +1,16 @@
 import datetime
 import os
 
+# config.py をインポートする前に環境変数を反映
+import config
+
+config.MASK_TYPE = os.getenv("MASK_TYPE", config.MASK_TYPE)
+config.MISSING_POINTS = int(os.getenv("MISSING_POINTS", config.MISSING_POINTS))
+cl_shift_env = os.getenv("CL_SHIFT", "")
+config.CL_SHIFT = None if cl_shift_env == "" else float(cl_shift_env)
+config.NUM_RESAMPLING = int(os.getenv("NUM_RESAMPLING", config.NUM_RESAMPLING))
+config.JUMP_LENGTH = int(os.getenv("JUMP_LENGTH", config.JUMP_LENGTH))
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch

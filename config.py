@@ -111,4 +111,4 @@ MISSING_POINTS = 124  # 0~248
 FIG_SIZE = (30, 14)
 SHOW_KNOWN_MISSING = False
 
-CL_SHIFT = 0.1
+CL_SHIFT = 0.1  # None or float
