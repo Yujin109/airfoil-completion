@@ -1,0 +1,6 @@
+convexity_loss_mean: 0.023358436301350594
+smoothness_loss_mean: 0.0014946266935872493
+cl_loss_mean: 0.00030030723913032
+cl_convergence_ratio_raw: 0.9352112676056341
+cl_convergence_ratio_strict: 0.9352112676056341
+generation_diversity_mean: 371.63949456013427
