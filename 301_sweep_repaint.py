@@ -15,19 +15,23 @@ import sys
 # ── スイープ設定 ─────────────────────────────────────────────────────────
 
 SWEEP_SETTINGS = [
+    # {
+    #     # "mask_types": ["head", "middle", "tail"],
+    #     "mask_types": ["middle"],
+    #     # "missing_points_list": [24, 72, 124, 176, 224],
+    #     "missing_points_list": [224],
+    #     "cl_shifts": [None],
+    #     "num_resampling_list": [30],
+    #     "jump_length_list": [10],
+    # },
     {
-        "mask_types": ["head", "middle", "tail"],
-        "missing_points_list": [24, 72, 124, 176],
+        # "mask_types": ["head", "tail", "middle"],
+        "mask_types": ["tail"],
+        # "missing_points_list": [24, 72, 124, 176, 224],
+        "missing_points_list": [224],
         "cl_shifts": [None],
-        "num_resampling_list": [20],
-        "jump_length_list": [10],
-    },
-    {
-        "mask_types": ["head", "middle", "tail"],
-        "missing_points_list": [24, 72, 176, 224],
-        "cl_shifts": [0.1],
-        "num_resampling_list": [10],
-        "jump_length_list": [10],
+        "num_resampling_list": [30],
+        "jump_length_list": [20],
     },
 ]
 
