@@ -152,7 +152,7 @@ def main():
             cl_ape = np.nan
         else:
             cl_ape = abs((cl_out_list[i] - original_cls[idx]) / original_cls[idx] * 100)
-        title = f"Cl_in: {original_cls[idx]:.3f}\nCl_out: {cl_out_list[i]:.3f}\nAPE: {cl_ape:.1f}"
+        title = f"CL_in: {original_cls[idx]:.3f}\nCL_out: {cl_out_list[i]:.3f}\nAPE: {cl_ape:.1f}"
         plot_inpaint(orig_denorm[i], rep_denorm[i], masks[i].cpu().numpy(), ax, title, SHOW_KNOWN_MISSING)
     plt.tight_layout()
 
