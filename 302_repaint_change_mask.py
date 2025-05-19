@@ -5,7 +5,7 @@ import os
 import config
 
 config.MASK_TYPE = os.getenv("MASK_TYPE", config.MASK_TYPE)
-config.MISSING_POINTS = int(os.getenv("MISSING_POINTS", config.MISSING_POINTS))
+config.MISSING_POINTS_RATIO = float(os.getenv("MISSING_POINTS_RATIO", config.MISSING_POINTS_RATIO))
 cl_shift_env = os.getenv("CL_SHIFT", "")
 config.CL_SHIFT = None if cl_shift_env == "" else float(cl_shift_env)
 config.NUM_RESAMPLING = int(os.getenv("NUM_RESAMPLING", config.NUM_RESAMPLING))
@@ -39,7 +39,6 @@ from src.metrics import smoothness_phi
 from src.models.model_registry import MODEL_REGISTRY
 from src.xfoil_utils import get_cl
 
-
 # def mask_manual(pattern="head", length=248, missing=10):
 #     if pattern == "head":
 #         assert missing % 2 == 0
@@ -61,6 +60,7 @@ from src.xfoil_utils import get_cl
 #         m[186 - miss_len : 186 + miss_len] = False
 #     return m
 
+
 def mask_manual(pattern="head", coords=None, missing_ratio=0.7):
     """
     x 軸の範囲に対して欠損領域を指定するマスク生成関数。
@@ -73,29 +73,31 @@ def mask_manual(pattern="head", coords=None, missing_ratio=0.7):
     if coords.ndim == 2:
         xs = coords[0]  # shape (L,)
     else:
-        xs = coords      # shape (L,)
+        xs = coords  # shape (L,)
 
     x_min, x_max = xs.min(), xs.max()
     range_x = x_max - x_min
-    mask = np.ones_like(xs, dtype=bool)
 
     if pattern == "head":
         # ドメインの先端側を missing_ratio 分だけ欠損
+        mask = np.ones_like(xs, dtype=bool)
         end = x_min + missing_ratio * range_x
         mask[(xs >= x_min) & (xs <= end)] = False
 
     elif pattern == "tail":
         # ドメインの末端側を missing_ratio 分だけ欠損
+        mask = np.ones_like(xs, dtype=bool)
         start = x_max - missing_ratio * range_x
         mask[(xs >= start) & (xs <= x_max)] = False
 
     elif pattern == "middle":
-        # ドメイン両端に equally split した欠損領域を配置
-        half = missing_ratio * range_x / 2
+        # ドメイン両端に 1-missing_ratioをequally split した既知領域を配置
+        mask = np.zeros_like(xs, dtype=bool)
+        half = (1 - missing_ratio) * range_x / 2
         # 先端側欠損
-        mask[(xs >= x_min) & (xs <= x_min + half)] = False
+        mask[(xs >= x_min) & (xs <= x_min + half)] = True
         # 末端側欠損
-        mask[(xs >= x_max - half) & (xs <= x_max)] = False
+        mask[(xs >= x_max - half) & (xs <= x_max)] = True
 
     else:
         raise ValueError(f"Unknown pattern: {pattern}")
@@ -210,7 +212,9 @@ def main():
 
     # save figure
     date_str = datetime.datetime.now().strftime("%y%m%d%H%M")
-    fname = f"{date_str}_R:{NUM_RESAMPLING}_J:{JUMP_LENGTH}_M:{MASK_TYPE}_MPR:{MISSING_POINTS_RATIO}_SHIFT:{CL_SHIFT}.png"
+    fname = (
+        f"{date_str}_R:{NUM_RESAMPLING}_J:{JUMP_LENGTH}_M:{MASK_TYPE}_MPR:{MISSING_POINTS_RATIO}_SHIFT:{CL_SHIFT}.png"
+    )
     fpath = os.path.join(REPAINT_DIR, fname)
     fig.savefig(fpath, dpi=300)
     print(f"[Saved sample images] {fpath}")
