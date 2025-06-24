@@ -107,6 +107,9 @@ REPAINT_DIR = os.path.join(RESULTS_DIR, "repaint")
 MASK_TYPE = "head"  # ["middle", "head", "tail"]
 MISSING_POINTS = 124  # 0~248
 MISSING_POINTS_RATIO = 0.5  # 0.0~1.0
+BLEND_RATIO = 0.1  # 0.0~1.0
+BLEND_TYPE = "linear"  # ["linear", "constant"]
+BLEND_VALUE = 0.5  # 0.0~1.0
 
 # plot settings
 FIG_SIZE = (30, 14)
