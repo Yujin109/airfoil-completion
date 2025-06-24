@@ -167,7 +167,12 @@ class RePaintDiffuser(Diffuser):
         # 初期ノイズ
         x = torch.randn_like(x_orig, device=device)
         # mask は float になった前提
+        # # mask は float Tensor (1=known,0=missing,(0,1)=blend) のまま使っていた
+        # mask = mask.unsqueeze(1).expand(-1, C, -1)
+
+        # mask をチャネル次元を展開したあと、x_orig と同じ dtype(float32) に変換
         mask = mask.unsqueeze(1).expand(-1, C, -1)
+        mask = mask.to(device=device, dtype=x_orig.dtype)
 
         ts = self.schedule_timesteps(self.num_timesteps, self.jump_length, self.num_resampling)
 

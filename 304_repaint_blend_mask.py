@@ -273,7 +273,9 @@ def main():
             blend_value=BLEND_VALUE,  # constant 時に使う値
         )
         masks_np.append(mask)
-    masks = torch.stack([torch.from_numpy(m) for m in masks_np], dim=0).to(device)
+    # masks = torch.stack([torch.from_numpy(m) for m in masks_np], dim=0).to(device)
+    # numpy→torch の際に float32 に変換してスタック
+    masks = torch.stack([torch.from_numpy(m).float() for m in masks_np], dim=0).to(device)
 
     if CL_SHIFT is not None:
         cls_batch += CL_SHIFT / dataset.cl_std
