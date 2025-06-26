@@ -16,14 +16,16 @@ import sys
 
 SWEEP_SETTINGS = [
     {
-        "mask_types": ["head", "tail", "middle"],
-        "missing_points_ratio_list": [0.1, 0.3, 0.5, 0.7, 0.9],
-        "cl_shifts": [0.1, None],
+        # "mask_types": ["head", "tail", "middle"],
+        "mask_types": ["head"],
+        # "missing_points_ratio_list": [0.1, 0.3, 0.5, 0.7, 0.9],
+        "missing_points_ratio_list": [0.5, 0.7, 0.9],
+        "cl_shifts": [0.1],
         "num_resampling_list": [10],
         "jump_length_list": [10],
         "blend_ratio_list": [0.05, 0.1],
-        "blend_type_list": ["linear"],
-        "blend_value_list": [1.0],
+        "blend_type_list": ["constant"],
+        "blend_value_list": [0.25, 0.50, 0.75],
     },
 ]
 

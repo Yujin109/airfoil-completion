@@ -313,6 +313,15 @@ def main():
     fname = (
         f"{date_str}_R:{NUM_RESAMPLING}_J:{JUMP_LENGTH}_M:{MASK_TYPE}_MPR:{MISSING_POINTS_RATIO}_SHIFT:{CL_SHIFT}.png"
     )
+    if BLEND_RATIO > 0.0:
+        if BLEND_TYPE == "linear":
+            blend_str = f"BLEND:{BLEND_RATIO:.2f}_{BLEND_TYPE}"
+        elif BLEND_TYPE == "constant":
+            blend_str = f"BLEND:{BLEND_RATIO:.2f}_{BLEND_TYPE}_{BLEND_VALUE:.2f}"
+        else:
+            raise ValueError(f"Unknown BLEND_TYPE: {BLEND_TYPE}")
+        fname = fname.replace(".png", f"_{blend_str}.png")
+
     fpath = os.path.join(REPAINT_DIR, fname)
     fig.savefig(fpath, dpi=300)
     print(f"[Saved sample images] {fpath}")
@@ -349,10 +358,21 @@ def main():
     metrics["cl_ape_mean"] = np.mean(cl_ape_list)
 
     # .txtファイルとして保存
+    txt_fname = (
+        f"{date_str}_R:{NUM_RESAMPLING}_J:{JUMP_LENGTH}_M:{MASK_TYPE}_MPR:{MISSING_POINTS_RATIO}_SHIFT:{CL_SHIFT}.txt"
+    )
+    if BLEND_RATIO > 0.0:
+        if BLEND_TYPE == "linear":
+            txt_fname = txt_fname.replace(".txt", f"_BLEND:{BLEND_RATIO:.2f}_{BLEND_TYPE}.txt")
+        elif BLEND_TYPE == "constant":
+            txt_fname = txt_fname.replace(".txt", f"_BLEND:{BLEND_RATIO:.2f}_{BLEND_TYPE}_{BLEND_VALUE:.2f}.txt")
+        else:
+            raise ValueError(f"Unknown BLEND_TYPE: {BLEND_TYPE}")
+
     with open(
         os.path.join(
             REPAINT_DIR,
-            f"{date_str}_R:{NUM_RESAMPLING}_J:{JUMP_LENGTH}_M:{MASK_TYPE}_MPR:{MISSING_POINTS_RATIO}_SHIFT:{CL_SHIFT}.txt",
+            txt_fname,
         ),
         "w",
     ) as f:
