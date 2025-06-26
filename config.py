@@ -40,8 +40,8 @@ PROJECT_NAME = "airfoil_diffusion"
 # EXECUTION_NAME = "250425-001:ResUnet(3-layer)+CFG(all-zero-false)+pos-enc+beta_end0.05"  # OK+phi 悪すぎる???
 # MODEL_NAME = "NewBaseResUNet_3layer"
 
-EXECUTION_NAME = "250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05"  # OK+phi 悪すぎる???
-MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero"
+# EXECUTION_NAME = "250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05"  # OK+phi 悪すぎる???
+# MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero"
 
 # EXECUTION_NAME = "250430-001:CFG(none)+pos-enc+beta_end0.05"  # OK+phi
 # MODEL_NAME = "NewBaseConditionalUNet_CFG_none"
@@ -51,6 +51,9 @@ MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero"
 
 # EXECUTION_NAME = "250418-003:CFG(none)+timestep1000"  # OK+phi
 # MODEL_NAME = "BaselineConditionalUNet_CFG_none"
+
+EXECUTION_NAME = "250626-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05+kernel753"
+MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero_widekernel"
 
 
 WEIGHT_PATH = f"./results/{EXECUTION_NAME}/weights/final_model_weights.pth"

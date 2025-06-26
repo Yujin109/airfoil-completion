@@ -24,6 +24,9 @@ from .model_250430_NewBase_CFG_none import (
 from .model_250506_NewBase_ResUNet_3layer_CFG_zero import (
     ConditionalResidualUNet_PosEnc as NewBaseResUNet_3layer_CFG_zero,
 )
+from .model_250626_NewBase_ResUNet_3layer_CFG_zero_widekernel import (
+    ConditionalResidualUNet_PosEnc as NewBaseResUNet_3layer_CFG_zero_widekernel,
+)
 from .model_25041819_Baseline_CFG_none import (
     ConditionalUNet as BaselineConditionalUNet_CFG_none,
 )
@@ -37,7 +40,8 @@ MODEL_REGISTRY: Dict[str, nn.Module] = {
     "BaselineResUNet_3layer_CFG_none": BaselineResUNet_3layer_CFG_none,
     "NewBaseConditionalUNet": NewBaseConditionalUNet,
     "NewBaseResUNet_3layer": NewBaseResUNet_3layer,
-    "NewBaseConditionalUNet_CFG_zero": NewBaseConditionalUNet_CFG_zero,  # best
+    "NewBaseConditionalUNet_CFG_zero": NewBaseConditionalUNet_CFG_zero,
     "NewBaseConditionalUNet_CFG_none": NewBaseConditionalUNet_CFG_none,
     "NewBaseResUNet_3layer_CFG_zero": NewBaseResUNet_3layer_CFG_zero,
+    "NewBaseResUNet_3layer_CFG_zero_widekernel": NewBaseResUNet_3layer_CFG_zero_widekernel,
 }
