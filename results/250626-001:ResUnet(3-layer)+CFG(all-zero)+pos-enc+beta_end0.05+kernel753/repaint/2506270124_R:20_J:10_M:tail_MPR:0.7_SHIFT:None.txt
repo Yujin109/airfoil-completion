@@ -1,0 +1,5 @@
+cl_mse_mean: 0.00035466792032464594
+cl_mape_mean: 1.5019053233949695
+cl_convergence_ratio: 0.8285714285714286
+cl_smoothness_phi_mean: 8.763354301452637
+cl_ape_mean: nan
