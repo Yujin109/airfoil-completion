@@ -14,24 +14,48 @@ import sys
 
 # ── スイープ設定 ─────────────────────────────────────────────────────────
 
+# SWEEP_SETTINGS = [
+#     {
+#         "mask_types": ["head", "tail", "middle"],
+#         "missing_points_ratio_list": [0.1, 0.3, 0.5, 0.7, 0.9],
+#         "cl_shifts": [None],
+#         "num_resampling_list": [1],
+#         "jump_length_list": [1],
+#     },
+#     {
+#         "mask_types": ["head", "tail", "middle"],
+#         "missing_points_ratio_list": [0.7],
+#         "cl_shifts": [None],
+#         "num_resampling_list": [10, 20, 30, 40, 50],
+#         "jump_length_list": [10],
+#     },
+#     {
+#         "mask_types": ["head", "tail", "middle"],
+#         "missing_points_ratio_list": [0.1, 0.3, 0.5, 0.7, 0.9],
+#         "cl_shifts": [None, 0.1],
+#         "num_resampling_list": [10],
+#         "jump_length_list": [10],
+#     },
+# ]
+
 SWEEP_SETTINGS = [
     {
-        "mask_types": ["head", "tail", "middle"],
-        "missing_points_ratio_list": [0.1, 0.3, 0.5, 0.7, 0.9],
+        "mask_types": ["top", "bottom"],
+        "missing_points_ratio_list": [0.5],
         "cl_shifts": [None],
         "num_resampling_list": [1],
         "jump_length_list": [1],
     },
     {
-        "mask_types": ["head", "tail", "middle"],
+        "mask_types": ["top", "bottom"],
         "missing_points_ratio_list": [0.7],
         "cl_shifts": [None],
         "num_resampling_list": [10, 20, 30, 40, 50],
         "jump_length_list": [10],
     },
     {
-        "mask_types": ["head", "tail", "middle"],
-        "missing_points_ratio_list": [0.1, 0.3, 0.5, 0.7, 0.9],
+        "mask_types": ["top", "bottom"],
+        "missing_points_ratio_list": [0.5],
         "cl_shifts": [None, 0.1],
         "num_resampling_list": [10],
         "jump_length_list": [10],

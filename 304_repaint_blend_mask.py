@@ -88,13 +88,21 @@ def mask_manual(
     """
     if coords is None:
         raise ValueError("coords must be provided")
-    if not (0.0 <= missing_ratio <= 1.0 and 0.0 <= blend_ratio <= 1.0 and missing_ratio + blend_ratio <= 1.0):
-        raise ValueError("missing_ratio and blend_ratio must be in [0,1] and sum <= 1")
+    if pattern not in {"head", "tail", "middle", "top", "bottom"}:
+        raise ValueError(f"Unknown pattern: {pattern}")
+    if pattern not in {"top", "bottom"}:
+        if not (0.0 <= missing_ratio <= 1.0 and 0.0 <= blend_ratio <= 1.0 and missing_ratio + blend_ratio <= 1.0):
+            raise ValueError("missing_ratio and blend_ratio must be in [0,1] and sum <= 1")
 
     # x 座標のみ取り出し
     xs = coords[0] if coords.ndim == 2 else coords
     x_min, x_max = xs.min(), xs.max()
     range_x = x_max - x_min
+
+    # インデックス配列
+    n = xs.shape[0]
+    half_n = n // 2
+    blend_len = int(blend_ratio * n)
 
     # ゼロから始めて最後に known 部分を1で埋める
     mask = np.zeros_like(xs, dtype=float)
@@ -163,6 +171,64 @@ def mask_manual(
             mask[right_idx] = blend_value
         else:  # linear
             mask[right_idx] = (xs[right_idx] - blend_right_start) / (blend_right_end - blend_right_start)
+
+    elif pattern == "top":
+        # 「上半面」（idx half_n～n-1）を欠損
+        miss_idx = np.arange(half_n, n)
+        known_idx = np.arange(0, half_n)
+
+        mask[miss_idx] = 0.0
+        mask[known_idx] = 1.0
+
+        # ブレンド幅（x軸割合の左右それぞれ blend_ratio/2）
+        bw = blend_ratio * range_x / 2
+
+        # 左側ブレンド (x_min -> x_min + bw)
+        if bw > 0:
+            bs, be = x_min, x_min + bw
+            idxs = known_idx[(xs[known_idx] >= bs) & (xs[known_idx] <= be)]
+            if blend_type == "constant":
+                mask[idxs] = blend_value
+            else:
+                mask[idxs] = (xs[idxs] - bs) / (be - bs)
+
+        # 右側ブレンド (x_max - bw -> x_max)
+        if bw > 0:
+            bs, be = x_max - bw, x_max
+            idxs = known_idx[(xs[known_idx] >= bs) & (xs[known_idx] <= be)]
+            if blend_type == "constant":
+                mask[idxs] = blend_value
+            else:
+                mask[idxs] = (be - xs[idxs]) / (be - bs)
+
+    elif pattern == "bottom":
+        # 「下半面」（idx 0～half_n-1）を欠損
+        miss_idx = np.arange(0, half_n)
+        known_idx = np.arange(half_n, n)
+
+        mask[miss_idx] = 0.0
+        mask[known_idx] = 1.0
+
+        # ブレンド幅（x軸割合の左右それぞれ blend_ratio/2）
+        bw = blend_ratio * range_x / 2
+
+        # 左側ブレンド (x_min -> x_min + bw)
+        if bw > 0:
+            bs, be = x_min, x_min + bw
+            idxs = known_idx[(xs[known_idx] >= bs) & (xs[known_idx] <= be)]
+            if blend_type == "constant":
+                mask[idxs] = blend_value
+            else:
+                mask[idxs] = (xs[idxs] - bs) / (be - bs)
+
+        # 右側ブレンド (x_max - bw -> x_max)
+        if bw > 0:
+            bs, be = x_max - bw, x_max
+            idxs = known_idx[(xs[known_idx] >= bs) & (xs[known_idx] <= be)]
+            if blend_type == "constant":
+                mask[idxs] = blend_value
+            else:
+                mask[idxs] = (be - xs[idxs]) / (be - bs)
 
     else:
         raise ValueError(f"Unknown pattern: {pattern}")

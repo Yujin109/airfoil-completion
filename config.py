@@ -40,8 +40,8 @@ PROJECT_NAME = "airfoil_diffusion"
 # EXECUTION_NAME = "250425-001:ResUnet(3-layer)+CFG(all-zero-false)+pos-enc+beta_end0.05"  # OK+phi 悪すぎる???
 # MODEL_NAME = "NewBaseResUNet_3layer"
 
-# EXECUTION_NAME = "250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05"  # OK+phi 悪すぎる???
-# MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero"
+EXECUTION_NAME = "250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05"  # OK+phi ベースこれ
+MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero"
 
 # EXECUTION_NAME = "250430-001:CFG(none)+pos-enc+beta_end0.05"  # OK+phi
 # MODEL_NAME = "NewBaseConditionalUNet_CFG_none"
@@ -56,8 +56,8 @@ PROJECT_NAME = "airfoil_diffusion"
 # MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero_widekernel"
 
 
-EXECUTION_NAME = "250628-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05+kernel777"
-MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero_widekernel_2"
+# EXECUTION_NAME = "250628-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05+kernel777"
+# MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero_widekernel_2"
 
 
 WEIGHT_PATH = f"./results/{EXECUTION_NAME}/weights/final_model_weights.pth"
@@ -111,7 +111,7 @@ SEED = 42
 
 # Output paths
 REPAINT_DIR = os.path.join(RESULTS_DIR, "repaint")
-MASK_TYPE = "head"  # ["middle", "head", "tail"]
+MASK_TYPE = "head"  # ["middle", "head", "tail", "top", "bottom"]
 MISSING_POINTS = 124  # 0~248
 MISSING_POINTS_RATIO = 0.5  # 0.0~1.0
 BLEND_RATIO = 0.1  # 0.0~1.0

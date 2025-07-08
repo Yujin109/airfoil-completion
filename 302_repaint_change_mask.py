@@ -69,6 +69,14 @@ def mask_manual(pattern="head", coords=None, missing_ratio=0.7):
     missing_ratio: ドメイン全体に対する欠損割合 (0.0–1.0)
     戻り値: 長さ L の bool 配列 (True=known, False=missing)
     """
+    if coords is None:
+        raise ValueError("coords must be provided")
+    if pattern not in {"head", "tail", "middle", "top", "bottom"}:
+        raise ValueError(f"Unknown pattern: {pattern}")
+    if pattern not in {"top", "bottom"}:
+        if not (0.0 <= missing_ratio <= 1.0):
+            raise ValueError("missing_ratio must be in [0,1]")
+
     # x 座標のみ取り出し
     if coords.ndim == 2:
         xs = coords[0]  # shape (L,)
@@ -98,6 +106,14 @@ def mask_manual(pattern="head", coords=None, missing_ratio=0.7):
         mask[(xs >= x_min) & (xs <= x_min + half)] = True
         # 末端側欠損
         mask[(xs >= x_max - half) & (xs <= x_max)] = True
+
+    elif pattern == "top":
+        mask = np.ones_like(xs, dtype=bool)
+        mask[:124] = False
+
+    elif pattern == "bottom":
+        mask = np.ones_like(xs, dtype=bool)
+        mask[124:] = False
 
     else:
         raise ValueError(f"Unknown pattern: {pattern}")
