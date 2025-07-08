@@ -36,7 +36,7 @@ SWEEP_SETTINGS = [
         "cl_shifts": [0.1],
         "num_resampling_list": [10],
         "jump_length_list": [10],
-        "blend_ratio_list": [0.1],
+        "blend_ratio_list": [0.05],
         "blend_type_list": ["linear"],
         "blend_value_list": [1],
     },

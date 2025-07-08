@@ -109,11 +109,11 @@ def mask_manual(pattern="head", coords=None, missing_ratio=0.7):
 
     elif pattern == "top":
         mask = np.ones_like(xs, dtype=bool)
-        mask[:124] = False
+        mask[124:] = False
 
     elif pattern == "bottom":
         mask = np.ones_like(xs, dtype=bool)
-        mask[124:] = False
+        mask[:124] = False
 
     else:
         raise ValueError(f"Unknown pattern: {pattern}")

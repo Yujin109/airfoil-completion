@@ -48,7 +48,7 @@ SWEEP_SETTINGS = [
     },
     {
         "mask_types": ["top", "bottom"],
-        "missing_points_ratio_list": [0.7],
+        "missing_points_ratio_list": [0.5],
         "cl_shifts": [None],
         "num_resampling_list": [10, 20, 30, 40, 50],
         "jump_length_list": [10],
