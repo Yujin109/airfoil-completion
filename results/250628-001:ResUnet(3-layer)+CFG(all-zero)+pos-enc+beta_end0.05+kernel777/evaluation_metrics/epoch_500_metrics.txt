@@ -1,0 +1,14 @@
+convexity_loss_mean: 0.02775719203054905
+smoothness_loss_mean: 0.0014955245175067486
+total_turning_angle: 1.988732422237317
+smoothness_phi: 2.737152099609375
+cl_mse_mean: 0.005754076901558812
+cl_mape_mean: 4.838112414925798
+cl_convergence_ratio_raw: 0.8225352112676056
+cl_convergence_ratio_strict: 0.8183098591549295
+generation_diversity_mean: 357.7549504024882
+mu: 17.560438055387685
+euclid_dist_mean: 5.9227247990353
+generation_diversity_all: 1.296683669090271
+mu_all: 1.1085816621780396
+euclid_dist_all: 0.042735242172026296
