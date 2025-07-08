@@ -31,7 +31,7 @@ import sys
 
 SWEEP_SETTINGS = [
     {
-        "mask_types": ["top, bottom"],
+        "mask_types": ["top", "bottom"],
         "missing_points_ratio_list": [0.5],
         "cl_shifts": [0.1],
         "num_resampling_list": [10],
