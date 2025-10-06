@@ -1,0 +1,34 @@
+{
+  "date": "2510061946",
+  "execution_name": "250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05",
+  "model_name": "NewBaseResUNet_3layer_CFG_zero",
+  "weight_path": "./results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/weights/final_model_weights.pth",
+  "tag": "2510061946_N100_R10_J10_M:top_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:0.682",
+  "args": {
+    "target_cl": 0.682,
+    "n": 100,
+    "mask_type": "top",
+    "missing_points_ratio": 0.5,
+    "blend_ratio": 0.1,
+    "blend_type": "linear",
+    "blend_value": 1.0,
+    "num_resampling": 10,
+    "jump_length": 10,
+    "cl_shift": 0.1,
+    "angle": 5.0,
+    "train_fraction": 1.0,
+    "scatter_labels": "train(sample),generated",
+    "seed": 42
+  },
+  "picked_train_index": 606,
+  "cl_in": 0.681873619556427,
+  "cl_target": 0.781873619556427,
+  "outputs": {
+    "generated_npy": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/generated_2510061946_N100_R10_J10_M:top_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:0.682.npy",
+    "train_npy": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/train_for_scatter_2510061946_N100_R10_J10_M:top_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:0.682.npy",
+    "hist_cl_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/hist_cl_2510061946_N100_R10_J10_M:top_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:0.682.png",
+    "hist_err_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/hist_err_2510061946_N100_R10_J10_M:top_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:0.682.png",
+    "stats_txt": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/stats_2510061946_N100_R10_J10_M:top_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:0.682.txt",
+    "cl_cd_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/cl_cd_scatter_2510061946_N100_R10_J10_M:top_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:0.682.png"
+  }
+}

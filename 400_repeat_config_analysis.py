@@ -2,77 +2,68 @@
 # -*- coding: utf-8 -*-
 
 """
-400_repeat_config_analysis.py
+400_repeat_config_analysis.py  (cached train CL/CD version)
 
-1つのconfigで、同一CLの学習サンプルから n 回 RePaint 生成し、
-- 出力 CL の分布
-- 誤差 (cl_out - cl_target) の分布
-- 統計（平均, 標準偏差, 収束率, MAPE など）
-- CL–CD 散布図（.npy を複数受け取って色分け）
-
-を保存する分析スクリプト。
-
-保存先: results/{MODEL_NAME}/analysis/
-ファイル名: 実験条件（mask, ratios, R, J, shift, n, cl_inなど）を含む。
-
-使い方（例）:
-    python 400_repeat_config_analysis.py \
-        --target_cl 0.682 \
-        --n 100 \
-        --mask_type top \
-        --missing_points_ratio 0.5 \
-        --blend_ratio 0.1 \
-        --blend_type linear \
-        --blend_value 1.0 \
-        --num_resampling 10 \
-        --jump_length 10 \
-        --cl_shift 0.1
-
-※ config.py の MODEL_NAME / WEIGHT_PATH / DIFFUSION_PARAMS 等を使用します。
+- RePaint で n 回生成 → CL 分布 / 誤差分布（赤線入り）/ 統計 / 生成形状 .npy 保存
+- CL–CD 散布図（学習データ vs 生成）を作成
+- 学習データ全体の CL/CD を angle ごとに一度だけ計算して
+  results/{EXECUTION_NAME}/analysis/train_clcd_cache_angle{angle}.npz
+  にキャッシュし、以後再利用（散布図計算を高速化）
 """
 
-import os
-import sys
-import math
-import json
 import argparse
 import datetime
-from typing import List, Tuple
+import json
+import os
+import sys
+from typing import List
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
+from tqdm import tqdm
 
-# 既存プロジェクトの依存
 import config
 from config import (
+    DIFFUSION_PARAMS,
+    EXECUTION_NAME,
+    GUIDANCE_SCALE,
     MODEL_NAME,
     WEIGHT_PATH,
-    DIFFUSION_PARAMS,
-    GUIDANCE_SCALE,
 )
 from src.data import AirfoilDataset
+
+# 既存: dataset.denormalize_coord, .coords_tensor, .cls_tensor, .cl_std など
 from src.diffusion_blend_mask import RePaintDiffuser
 from src.models.model_registry import MODEL_REGISTRY
-from src.xfoil_utils import get_cl, get_cd
+from src.xfoil_utils import get_xf_instance  # 共有インスタンスで高速化
 
-# ---------------------------
-# マスク生成（標準化前座標を入力; 305_* と同仕様）
-# ---------------------------
-def mask_manual(
-    pattern: str,
-    coords: np.ndarray,
-    missing_ratio: float,
-    blend_ratio: float,
-    blend_type: str,
-    blend_value: float,
-) -> np.ndarray:
-    """
-    pattern: "head", "tail", "middle", "top", "bottom"
-    coords: shape (2, L) or (L,) の x座標含む配列（標準化前）
-    戻り値: 長さ L の float 配列 (1=known, 0=missing, (0,1)=blend)
-    """
+
+# =========================
+# XFoil: 一回で CL/CD 取得
+# =========================
+def get_cl_cd(coord: np.ndarray, angle: float = 5.0):
+    try:
+        import numpy as _np
+        from xfoil.model import Airfoil as _Airfoil
+
+        xf = get_xf_instance()
+        xf.Re = 3e6
+        xf.max_iter = 100
+        x, y = coord.reshape(2, -1)
+        xf.airfoil = _Airfoil(x=x, y=y)
+        c = xf.a(angle)
+        if c is None or len(c) < 2:
+            return (np.nan, np.nan)
+        return (float(_np.round(c[0], 10)), float(_np.round(c[1], 10)))
+    except Exception:
+        return (np.nan, np.nan)
+
+
+# =========================
+# マスク生成（305 と同仕様）
+# =========================
+def mask_manual(pattern, coords, missing_ratio, blend_ratio, blend_type, blend_value) -> np.ndarray:
     if coords is None:
         raise ValueError("coords must be provided")
     if pattern not in {"head", "tail", "middle", "top", "bottom"}:
@@ -84,10 +75,9 @@ def mask_manual(
     n = xs.shape[0]
     half_n = n // 2
 
-    # 非 top / bottom の場合は比率チェック
     if pattern not in {"top", "bottom"}:
         if not (0.0 <= missing_ratio <= 1.0 and 0.0 <= blend_ratio <= 1.0 and (missing_ratio + blend_ratio) <= 1.0):
-            raise ValueError("missing_ratio and blend_ratio must be in [0,1] and sum <= 1")
+            raise ValueError("missing_ratio/blend_ratio invalid")
 
     mask = np.zeros_like(xs, dtype=float)
 
@@ -96,125 +86,88 @@ def mask_manual(
         miss_end = x_min + missing_ratio * range_x
         blend_start = miss_end
         blend_end = miss_end + blend_ratio * range_x
-
         mask[xs > blend_end] = 1.0
         mask[(xs >= miss_start) & (xs <= miss_end)] = 0.0
-
-        blend_idx = (xs > blend_start) & (xs <= blend_end)
+        idx = (xs > blend_start) & (xs <= blend_end)
         if blend_ratio > 0:
             if blend_type == "constant":
-                mask[blend_idx] = blend_value
+                mask[idx] = blend_value
             elif blend_type == "linear":
-                mask[blend_idx] = (xs[blend_idx] - blend_start) / (blend_end - blend_start)
-            else:
-                raise ValueError(f"Unknown blend_type: {blend_type}")
+                mask[idx] = (xs[idx] - blend_start) / (blend_end - blend_start)
 
     elif pattern == "tail":
         miss_end = x_max
         miss_start = x_max - missing_ratio * range_x
         blend_end = miss_start
         blend_start = miss_start - blend_ratio * range_x
-
         mask[xs < blend_start] = 1.0
         mask[(xs >= miss_start) & (xs <= miss_end)] = 0.0
-
-        blend_idx = (xs >= blend_start) & (xs < blend_end)
+        idx = (xs >= blend_start) & (xs < blend_end)
         if blend_ratio > 0:
             if blend_type == "constant":
-                mask[blend_idx] = blend_value
+                mask[idx] = blend_value
             elif blend_type == "linear":
-                mask[blend_idx] = 1.0 - (xs[blend_idx] - blend_start) / (blend_end - blend_start)
-            else:
-                raise ValueError(f"Unknown blend_type: {blend_type}")
+                mask[idx] = 1.0 - (xs[idx] - blend_start) / (blend_end - blend_start)
 
     elif pattern == "middle":
         half_known = (1.0 - missing_ratio) * range_x / 2
         miss_start = x_min + half_known
         miss_end = x_max - half_known
         blend_half = blend_ratio * range_x / 2
-        blend_left_start = miss_start - blend_half
-        blend_left_end = miss_start
-        blend_right_start = miss_end
-        blend_right_end = miss_end + blend_half
-
-        mask[xs <= blend_left_start] = 1.0
-        mask[xs >= blend_right_end] = 1.0
+        bls, ble = miss_start - blend_half, miss_start
+        brs, bre = miss_end, miss_end + blend_half
+        mask[xs <= bls] = 1.0
+        mask[xs >= bre] = 1.0
         mask[(xs > miss_start) & (xs < miss_end)] = 0.0
-
-        left_idx = (xs > blend_left_start) & (xs <= blend_left_end)
-        right_idx = (xs >= blend_right_start) & (xs < blend_right_end)
-
+        left_idx = (xs > bls) & (xs <= ble)
+        right_idx = (xs >= brs) & (xs < bre)
         if blend_ratio > 0:
             if blend_type == "constant":
-                mask[left_idx] = blend_value
-                mask[right_idx] = blend_value
-            elif blend_type == "linear":
-                mask[left_idx] = (xs[left_idx] - blend_left_start) / (blend_left_end - blend_left_start)
-                mask[right_idx] = (xs[right_idx] - blend_right_start) / (blend_right_end - blend_right_start)
+                mask[left_idx] = mask[right_idx] = blend_value
             else:
-                raise ValueError(f"Unknown blend_type: {blend_type}")
+                mask[left_idx] = (xs[left_idx] - bls) / (ble - bls)
+                mask[right_idx] = (xs[right_idx] - brs) / (bre - brs)
 
     elif pattern == "top":
         miss_idx = np.arange(half_n, n)
         known_idx = np.arange(0, half_n)
         mask[miss_idx] = 0.0
         mask[known_idx] = 1.0
-
         bw = blend_ratio * range_x / 2
         if bw > 0:
             bs, be = x_min, x_min + bw
             idxs = known_idx[(xs[known_idx] >= bs) & (xs[known_idx] <= be)]
-            if blend_type == "constant":
-                mask[idxs] = blend_value
-            elif blend_type == "linear":
-                mask[idxs] = (xs[idxs] - bs) / (be - bs)
-            else:
-                raise ValueError(f"Unknown blend_type: {blend_type}")
-
+            mask[idxs] = blend_value if blend_type == "constant" else (xs[idxs] - bs) / (be - bs)
             bs, be = x_max - bw, x_max
             idxs = known_idx[(xs[known_idx] >= bs) & (xs[known_idx] <= be)]
-            if blend_type == "constant":
-                mask[idxs] = blend_value
-            elif blend_type == "linear":
-                mask[idxs] = (be - xs[idxs]) / (be - bs)
-            else:
-                raise ValueError(f"Unknown blend_type: {blend_type}")
+            mask[idxs] = blend_value if blend_type == "constant" else (be - xs[idxs]) / (be - bs)
 
     elif pattern == "bottom":
         miss_idx = np.arange(0, half_n)
         known_idx = np.arange(half_n, n)
         mask[miss_idx] = 0.0
         mask[known_idx] = 1.0
-
         bw = blend_ratio * range_x / 2
         if bw > 0:
             bs, be = x_min, x_min + bw
             idxs = known_idx[(xs[known_idx] >= bs) & (xs[known_idx] <= be)]
-            if blend_type == "constant":
-                mask[idxs] = blend_value
-            elif blend_type == "linear":
-                mask[idxs] = (xs[idxs] - bs) / (be - bs)
-            else:
-                raise ValueError(f"Unknown blend_type: {blend_type}")
-
+            mask[idxs] = blend_value if blend_type == "constant" else (xs[idxs] - bs) / (be - bs)
             bs, be = x_max - bw, x_max
             idxs = known_idx[(xs[known_idx] >= bs) & (xs[known_idx] <= be)]
-            if blend_type == "constant":
-                mask[idxs] = blend_value
-            elif blend_type == "linear":
-                mask[idxs] = (be - xs[idxs]) / (be - bs)
-            else:
-                raise ValueError(f"Unknown blend_type: {blend_type}")
+            mask[idxs] = blend_value if blend_type == "constant" else (be - xs[idxs]) / (be - bs)
 
     return mask
 
 
-# ---------------------------
+# =========================
 # 図ユーティリティ
-# ---------------------------
-def save_hist(data: np.ndarray, title: str, xlabel: str, out_path: str, bins: int = 30):
+# =========================
+def save_hist(data: np.ndarray, title: str, xlabel: str, out_path: str, vline: float = None, bins: int = 30):
+    arr = data[~np.isnan(data)]
     plt.figure(figsize=(8, 5))
-    plt.hist(data[~np.isnan(data)], bins=bins)
+    plt.hist(arr, bins=bins)
+    if vline is not None:
+        plt.axvline(vline, color="red", linestyle="--", linewidth=2)
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel("count")
@@ -224,32 +177,37 @@ def save_hist(data: np.ndarray, title: str, xlabel: str, out_path: str, bins: in
     plt.close()
 
 
-def plot_cl_cd_from_npy_list(npy_paths: List[str], labels: List[str], out_path: str, angle_deg: float = 5.0):
+def plot_cl_cd_from_paths(paths: List[str], labels: List[str], out_path: str, angle_deg: float):
     """
-    各 .npy（shape (N,2,L) or (2,L) を許容）について cl, cd を計算し、色分け散布図を描画。
-    XFoil 計算なので枚数・点数によっては時間がかかる点に注意。
+    paths の各要素が .npz の場合: 'cls','cds' を読み込んで散布（XFoil無し）
+                        .npy の場合: 形状から XFoil で CL/CD を計算（遅い）
     """
-    assert len(npy_paths) == len(labels)
+    assert len(paths) == len(labels)
     cmap = plt.get_cmap("tab10")
-
     plt.figure(figsize=(8, 6))
-    for i, (p, lab) in enumerate(zip(npy_paths, labels)):
-        arr = np.load(p, allow_pickle=True)
-        # arr shape: (N,2,L) or (2,L)
-        if arr.ndim == 2:
-            arr = arr.reshape(1, *arr.shape)
-        cls, cds = [], []
-        for k in range(arr.shape[0]):
-            cl = get_cl(arr[k], angle=angle_deg)
-            cd = get_cd(arr[k], angle=angle_deg)
-            if not (np.isnan(cl) or np.isnan(cd)):
-                cls.append(cl)
-                cds.append(cd)
+    for i, (p, lab) in enumerate(zip(paths, labels)):
+        if p.endswith(".npz"):
+            cache = np.load(p)
+            cls = cache["cls"]
+            cds = cache["cds"]
+        else:
+            arr = np.load(p, allow_pickle=True)
+            if arr.ndim == 2:
+                arr = arr.reshape(1, *arr.shape)
+            cls, cds = [], []
+            for k in tqdm(range(arr.shape[0]), desc=f"Compute CL/CD for {lab}"):
+                cl, cd = get_cl_cd(arr[k], angle=angle_deg)
+                if not (np.isnan(cl) or np.isnan(cd)):
+                    cls.append(cl)
+                    cds.append(cd)
+            cls = np.array(cls)
+            cds = np.array(cds)
+
         if len(cls) > 0:
             plt.scatter(cls, cds, label=lab, alpha=0.6, c=[cmap(i % 10)])
 
-    plt.xlabel("CL (α={}°)".format(angle_deg))
-    plt.ylabel("CD (α={}°)".format(angle_deg))
+    plt.xlabel("CL")
+    plt.ylabel("CD")
     plt.title("CL–CD Scatter")
     plt.grid(True)
     plt.legend()
@@ -258,32 +216,64 @@ def plot_cl_cd_from_npy_list(npy_paths: List[str], labels: List[str], out_path: 
     plt.close()
 
 
-# ---------------------------
-# メイン処理
-# ---------------------------
+# =========================
+# 学習 CL/CD キャッシュ
+# =========================
+def get_or_build_train_clcd_cache(dataset: AirfoilDataset, analysis_dir: str, angle: float) -> str:
+    """
+    学習データ全体の CL/CD を angle ごとに計算し、.npz にキャッシュ。
+    既存があればそれを使う。戻り値はキャッシュファイルのパス。
+    """
+    cache_path = os.path.join(analysis_dir, f"train_clcd_cache_angle{angle:.3f}.npz")
+    if os.path.exists(cache_path):
+        return cache_path
+
+    # フル学習データの座標（標準化前）
+    coords = dataset.denormalize_coord(dataset.coords_tensor).cpu().numpy()
+    cls = np.empty(coords.shape[0], dtype=float)
+    cds = np.empty(coords.shape[0], dtype=float)
+
+    for i in tqdm(range(coords.shape[0]), desc=f"Build train CL/CD cache (angle={angle:.3f})"):
+        cl, cd = get_cl_cd(coords[i], angle=angle)
+        cls[i] = cl
+        cds[i] = cd
+
+    np.savez_compressed(cache_path, cls=cls, cds=cds, dataset_size=coords.shape[0], angle=angle)
+    return cache_path
+
+
+def make_subset_clcd_cache(full_cache_npz: str, idx_sel: np.ndarray, out_npz: str):
+    data = np.load(full_cache_npz)
+    cls_full, cds_full = data["cls"], data["cds"]
+    np.savez_compressed(out_npz, cls=cls_full[idx_sel], cds=cds_full[idx_sel])
+
+
+# =========================
+# メイン
+# =========================
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--target_cl", type=float, required=True, help="学習データで狙うCL（例: 0.682）")
-    parser.add_argument("--n", type=int, default=100, help="同一サンプルからの生成回数")
-    parser.add_argument("--mask_type", type=str, default="top", choices=["head","tail","middle","top","bottom"])
+    parser.add_argument("--target_cl", type=float, required=True)
+    parser.add_argument("--n", type=int, default=100)
+    parser.add_argument("--mask_type", type=str, default="top", choices=["head", "tail", "middle", "top", "bottom"])
     parser.add_argument("--missing_points_ratio", type=float, default=0.5)
     parser.add_argument("--blend_ratio", type=float, default=0.1)
-    parser.add_argument("--blend_type", type=str, default="linear", choices=["linear","constant"])
+    parser.add_argument("--blend_type", type=str, default="linear", choices=["linear", "constant"])
     parser.add_argument("--blend_value", type=float, default=1.0)
     parser.add_argument("--num_resampling", type=int, default=10)
     parser.add_argument("--jump_length", type=int, default=10)
     parser.add_argument("--cl_shift", type=float, default=0.1)
-    parser.add_argument("--angle", type=float, default=5.0, help="XFoil計算の迎角[deg]")
-    parser.add_argument("--dataset_sample_for_scatter", type=int, default=500, help="学習データからCL-CD散布用に抽出する件数")
+    parser.add_argument("--angle", type=float, default=5.0)
+    parser.add_argument("--train_fraction", type=float, default=1.0, help="0-1 (既定=1.0=全学習データ)")
+    parser.add_argument("--scatter_labels", type=str, default="train(sample),generated")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    # 解析出力ディレクトリ（モデル名ベース）
-    ANALYSIS_DIR = os.path.join("results", MODEL_NAME, "analysis")
+    ANALYSIS_DIR = os.path.join("results", EXECUTION_NAME, "analysis")
     os.makedirs(ANALYSIS_DIR, exist_ok=True)
 
-    # タイムスタンプ & 実験名（ファイル名共通プレフィックス）
-    date_str = datetime.datetime.now().strftime("%y%m%d%H%M")
+    # タイムスタンプは先頭
+    date_str = datetime.datetime.now().strftime("%y%m%d%H%M%S")
     tag = (
         f"{date_str}_N{args.n}_R{args.num_resampling}_J{args.jump_length}"
         f"_M:{args.mask_type}_MPR:{args.missing_points_ratio}"
@@ -291,7 +281,7 @@ def main():
         f"_SHIFT:{args.cl_shift}_CLIN:{args.target_cl}"
     )
 
-    # 1) データとモデルのロード
+    # 1) データ/モデル
     dataset = AirfoilDataset()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_cls = MODEL_REGISTRY[MODEL_NAME]
@@ -308,81 +298,74 @@ def main():
         jump_length=args.jump_length,
     )
 
-    # 2) 指定CLに最も近い学習サンプルを1つ選択
+    # 2) 指定CLに最も近い学習サンプル
     cls_denorm_all = dataset.denormalize_cl(dataset.cls_tensor).numpy().flatten()
     idx_closest = int(np.argmin(np.abs(cls_denorm_all - args.target_cl)))
-    cl_in = float(cls_denorm_all[idx_closest])  # 実際に使う入力CL
+    cl_in = float(cls_denorm_all[idx_closest])
     cl_target = cl_in + args.cl_shift
 
-    coord_std = dataset.coords_tensor[idx_closest:idx_closest+1].to(device)  # shape (1,2,L) 標準化済
-    cls_std = dataset.cls_tensor[idx_closest:idx_closest+1].to(device)       # shape (1,1)
+    coord_std = dataset.coords_tensor[idx_closest : idx_closest + 1].to(device)
+    cls_std = dataset.cls_tensor[idx_closest : idx_closest + 1].to(device)
 
-    # 3) マスク生成（標準化前の座標で）
-    coord_denorm_single = dataset.denormalize_coord(coord_std).cpu().numpy()[0]  # (2,L)
+    # 3) マスク（標準化前）
+    coord_denorm_single = dataset.denormalize_coord(coord_std).cpu().numpy()[0]
     mask_np = mask_manual(
-        pattern=args.mask_type,
-        coords=coord_denorm_single,
-        missing_ratio=args.missing_points_ratio,
-        blend_ratio=args.blend_ratio,
-        blend_type=args.blend_type,
-        blend_value=args.blend_value,
+        args.mask_type,
+        coord_denorm_single,
+        args.missing_points_ratio,
+        args.blend_ratio,
+        args.blend_type,
+        args.blend_value,
     ).astype(np.float32)
-    mask = torch.from_numpy(mask_np).unsqueeze(0).to(device)  # (1,L)
-    mask = mask.float()
+    mask = torch.from_numpy(mask_np).unsqueeze(0).to(device).float()
 
-    # 4) n 回分のバッチを構成（同一サンプルを n 回複製）
-    coord_std_batch = coord_std.repeat(args.n, 1, 1)  # (n,2,L)
-    cls_std_batch = cls_std.repeat(args.n, 1)         # (n,1)
-    mask_batch = mask.repeat(args.n, 1)               # (n,L)
-
-    # CL shift を正規化空間に反映
-    if args.cl_shift is not None and args.cl_shift != 0.0:
+    # 4) バッチ
+    coord_std_batch = coord_std.repeat(args.n, 1, 1)
+    cls_std_batch = cls_std.repeat(args.n, 1)
+    mask_batch = mask.repeat(args.n, 1)
+    if args.cl_shift:
         cls_std_batch = cls_std_batch + (args.cl_shift / dataset.cl_std)
 
-    # 5) RePaint 実行
-    # 乱数の再現性（必要なら固定 / デフォルトはばらつきを出すため固定しない）
+    # 乱数
     if args.seed is not None and args.seed >= 0:
         np.random.seed(args.seed)
         torch.manual_seed(args.seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(args.seed)
-        # 上記で初期化した後、各サンプルごとに追加の乱数を使うため敢えて固定しすぎない
 
+    # 5) RePaint（内部 tqdm あり）
     with torch.no_grad():
-        repainted_std = diffuser.repaint(model, coord_std_batch, mask_batch, cls_std_batch)  # (n,2,L)
+        repainted_std = diffuser.repaint(model, coord_std_batch, mask_batch, cls_std_batch)
 
-    # 6) 標準化前へ戻して .npy 保存
-    repainted_denorm = dataset.denormalize_coord(repainted_std).cpu().numpy()  # (n,2,L)
-    gen_npy_path = os.path.join(ANALYSIS_DIR, f"generated_{tag}.npy")
+    # 6) 生成形状 .npy 保存（標準化前）
+    repainted_denorm = dataset.denormalize_coord(repainted_std).cpu().numpy()
+    gen_npy_path = os.path.join(ANALYSIS_DIR, f"{tag}_generated.npy")
     np.save(gen_npy_path, repainted_denorm)
 
-    # 7) 出力CL, 誤差、収束率などの統計
-    cl_out_list = []
-    for i in range(repainted_denorm.shape[0]):
-        cl_val = get_cl(repainted_denorm[i], angle=args.angle)
-        cl_out_list.append(cl_val)
-    cl_out = np.array(cl_out_list, dtype=float)
-    err = cl_out - cl_target  # 誤差
-    # 収束率（NaNでない割合）
+    # 7) 生成 CL（進捗）
+    cl_out = np.empty(repainted_denorm.shape[0], dtype=float)
+    for i in tqdm(range(repainted_denorm.shape[0]), desc="Compute CL for generated"):
+        cl, _ = get_cl_cd(repainted_denorm[i], angle=args.angle)
+        cl_out[i] = cl
+    err = cl_out - cl_target
     valid_mask = ~np.isnan(cl_out)
     convergence_ratio = float(valid_mask.mean())
-    # 統計
     cl_mean = float(np.nanmean(cl_out))
     cl_std = float(np.nanstd(cl_out))
     err_mean = float(np.nanmean(err))
     err_std = float(np.nanstd(err))
-    # MAPE（相対誤差％）
-    mape = float(np.nanmean(np.abs((cl_out - cl_target) / cl_target) * 100.0))
+    mape = float(np.nanmean(np.abs((cl_out - cl_target) / max(abs(cl_target), 1e-12)) * 100.0))
 
-    # 8) 分布図保存
-    cl_hist_path = os.path.join(ANALYSIS_DIR, f"hist_cl_{tag}.png")
-    err_hist_path = os.path.join(ANALYSIS_DIR, f"hist_err_{tag}.png")
-    save_hist(cl_out, f"CL distribution (target={cl_target:.3f})", "CL", cl_hist_path)
-    save_hist(err, "Error distribution (CL_out - CL_target)", "Error", err_hist_path)
+    # 8) 分布図（赤線）
+    cl_hist_path = os.path.join(ANALYSIS_DIR, f"{tag}_hist_cl.png")
+    err_hist_path = os.path.join(ANALYSIS_DIR, f"{tag}_hist_err.png")
+    save_hist(cl_out, f"CL distribution (target={cl_target:.3f})", "CL", cl_hist_path, vline=cl_target)
+    save_hist(err, "Error distribution (CL_out - CL_target)", "Error", err_hist_path, vline=0.0)
 
-    # 9) 統計テキスト保存
-    stats_path = os.path.join(ANALYSIS_DIR, f"stats_{tag}.txt")
+    # 9) 統計
+    stats_path = os.path.join(ANALYSIS_DIR, f"{tag}_stats.txt")
     with open(stats_path, "w") as f:
+        f.write(f"EXECUTION_NAME: {EXECUTION_NAME}\n")
         f.write(f"MODEL_NAME: {MODEL_NAME}\n")
         f.write(f"WEIGHT_PATH: {WEIGHT_PATH}\n")
         f.write(f"n: {args.n}\n")
@@ -397,7 +380,7 @@ def main():
         f.write(f"cl_shift: {args.cl_shift}\n")
         f.write(f"cl_target = cl_in + cl_shift: {cl_target:.6f}\n")
         f.write(f"angle(deg): {args.angle}\n")
-        f.write("\n")
+        f.write(f"train_fraction: {args.train_fraction}\n\n")
         f.write(f"convergence_ratio: {convergence_ratio:.4f}\n")
         f.write(f"cl_mean: {cl_mean:.6f}\n")
         f.write(f"cl_std: {cl_std:.6f}\n")
@@ -405,27 +388,46 @@ def main():
         f.write(f"err_std: {err_std:.6f}\n")
         f.write(f"MAPE(%): {mape:.3f}\n")
 
-    # 10) CL–CD 散布図
-    # 学習データから散布用にランダムサンプル抽出し .npy で保存
-    rng = np.random.default_rng(args.seed if args.seed is not None and args.seed >= 0 else None)
-    total_N = dataset.coords_tensor.shape[0]
-    take = min(args.dataset_sample_for_scatter, total_N)
-    sample_idx = rng.choice(total_N, size=take, replace=False)
-    train_coords_denorm = dataset.denormalize_coord(dataset.coords_tensor[sample_idx]).cpu().numpy()
-    train_npy_path = os.path.join(ANALYSIS_DIR, f"train_sample_for_scatter_{tag}.npy")
-    np.save(train_npy_path, train_coords_denorm)
+    # 10) 学習 CL/CD キャッシュ → サブセット npz → 散布
+    full_cache_npz = get_or_build_train_clcd_cache(dataset, ANALYSIS_DIR, args.angle)
 
-    clcd_png_path = os.path.join(ANALYSIS_DIR, f"cl_cd_scatter_{tag}.png")
-    plot_cl_cd_from_npy_list(
-        npy_paths=[train_npy_path, gen_npy_path],
-        labels=["train(sample)", "generated"],
+    total_N = dataset.coords_tensor.shape[0]
+    use_N = int(round(total_N * max(0.0, min(args.train_fraction, 1.0))))
+    if use_N < total_N:
+        rng = np.random.default_rng(args.seed if (args.seed is not None and args.seed >= 0) else None)
+        idx_sel = np.sort(rng.choice(total_N, size=use_N, replace=False))
+    else:
+        idx_sel = np.arange(total_N)
+
+    # サブセット .npz（CL/CD のみ）を保存
+    train_subset_npz = os.path.join(ANALYSIS_DIR, f"{tag}_train_clcd_subset.npz")
+    make_subset_clcd_cache(full_cache_npz, idx_sel, train_subset_npz)
+
+    # ついでに将来の PCA 用に座標サンプルも保存（標準化前）
+    train_coords_denorm = dataset.denormalize_coord(dataset.coords_tensor[idx_sel]).cpu().numpy()
+    train_coords_npy = os.path.join(ANALYSIS_DIR, f"{tag}_train_coords_for_scatter.npy")
+    np.save(train_coords_npy, train_coords_denorm)
+
+    # 凡例ラベル
+    labels = [s.strip() for s in args.scatter_labels.split(",")]
+    if len(labels) < 2:
+        labels = labels + ["generated"]
+    elif len(labels) > 2:
+        labels = labels[:2]
+
+    clcd_png_path = os.path.join(ANALYSIS_DIR, f"{tag}_cl_cd_scatter.png")
+    # 学習は .npz（CL/CD 既計算）、生成は .npy（必要ならそのまま XFoil で）
+    plot_cl_cd_from_paths(
+        paths=[train_subset_npz, gen_npy_path],
+        labels=labels,
         out_path=clcd_png_path,
         angle_deg=args.angle,
     )
 
-    # 11) 追記: JSONメタも保存（将来のPCA/t-SNE用メタ）
+    # 11) メタ
     meta = {
         "date": date_str,
+        "execution_name": EXECUTION_NAME,
         "model_name": MODEL_NAME,
         "weight_path": WEIGHT_PATH,
         "tag": tag,
@@ -435,19 +437,22 @@ def main():
         "cl_target": cl_target,
         "outputs": {
             "generated_npy": gen_npy_path,
-            "train_sample_npy": train_npy_path,
+            "train_coords_npy": train_coords_npy,
+            "train_subset_clcd_npz": train_subset_npz,
             "hist_cl_png": cl_hist_path,
             "hist_err_png": err_hist_path,
             "stats_txt": stats_path,
             "cl_cd_png": clcd_png_path,
         },
     }
-    with open(os.path.join(ANALYSIS_DIR, f"meta_{tag}.json"), "w") as f:
+    meta_path = os.path.join(ANALYSIS_DIR, f"{tag}_meta.json")
+    with open(meta_path, "w") as f:
         json.dump(meta, f, indent=2, ensure_ascii=False)
 
     print("\n[Analysis Saved]")
     for k, v in meta["outputs"].items():
         print(f"{k}: {v}")
+    print(f"meta_json: {meta_path}")
 
 
 if __name__ == "__main__":
