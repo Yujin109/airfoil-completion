@@ -22,3 +22,14 @@ def get_cl(coord, xf=None, angle=5):
     xf.airfoil = Airfoil(x=datax, y=datay)
     c = xf.a(angle)
     return np.round(c[0], 10)
+
+
+def get_cd(coord, xf=None, angle=5):
+    if xf is None:
+        xf = get_xf_instance()
+    xf.Re = 3e6
+    xf.max_iter = 100
+    datax, datay = coord.reshape(2, -1)
+    xf.airfoil = Airfoil(x=datax, y=datay)
+    c = xf.a(angle)
+    return np.round(c[1], 10)

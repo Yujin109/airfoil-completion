@@ -1,0 +1,23 @@
+EXECUTION_NAME: 250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05
+MODEL_NAME: NewBaseResUNet_3layer_CFG_zero
+WEIGHT_PATH: ./results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/weights/final_model_weights.pth
+n: 100
+mask_type: bottom
+missing_points_ratio: 0.5
+blend_ratio: 0.1
+blend_type: linear
+blend_value: 1.0
+num_resampling: 10
+jump_length: 10
+cl_in (picked): 1.200076
+cl_shift: 0.1
+cl_target = cl_in + cl_shift: 1.300076
+angle(deg): 5.0
+train_fraction: 1.0
+
+convergence_ratio: 0.9700
+cl_mean: 1.206353
+cl_std: 0.022024
+err_mean: -0.093723
+err_std: 0.022024
+MAPE(%): 7.209
