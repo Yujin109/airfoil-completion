@@ -69,7 +69,7 @@ SWEEP_SETTINGS = [
         "smooth_methods": ["savgol_threshold"],  # "laplacian" / "moving_average" / "savgol_threshold" / "none"
         "smooth_known_ratios": [0.1],
         "smooth_alpha": [0.4],  # 関係なし
-        "smooth_ma_window": [5, 7],  # 関係なし
+        "smooth_ma_window": [7],  # 関係なし
         "smooth_sg_window": [9],
         "smooth_sg_degree": [2],
         "smooth_sg_tau": [0.002],
@@ -115,7 +115,7 @@ SWEEP_SETTINGS = [
         "smooth_methods": ["savgol_threshold"],  # "laplacian" / "moving_average" / "savgol_threshold" / "none"
         "smooth_known_ratios": [0.1],
         "smooth_alpha": [0.4],  # 関係なし
-        "smooth_ma_window": [5, 7],  # 関係なし
+        "smooth_ma_window": [7],  # 関係なし
         "smooth_sg_window": [9],
         "smooth_sg_degree": [2],
         "smooth_sg_tau": [0.002],
