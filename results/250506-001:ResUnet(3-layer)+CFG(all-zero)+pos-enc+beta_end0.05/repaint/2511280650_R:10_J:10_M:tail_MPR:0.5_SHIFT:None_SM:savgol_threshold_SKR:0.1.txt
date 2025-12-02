@@ -1,0 +1,11 @@
+cl_mse_mean: 0.012468188261180957
+cl_mape_mean: 8.637292930504998
+cl_convergence_ratio: 0.8285714285714286
+cl_smoothness_phi_mean: 8.763354301452637
+cl_ape_mean: nan
+known_change_ratio_points_mean: 0.09069517417524996
+known_change_ratio_x: 0.1
+smooth_method: savgol_threshold
+smooth_alpha: 0.4
+smooth_num_iters: 20
+smooth_ma_window: 5

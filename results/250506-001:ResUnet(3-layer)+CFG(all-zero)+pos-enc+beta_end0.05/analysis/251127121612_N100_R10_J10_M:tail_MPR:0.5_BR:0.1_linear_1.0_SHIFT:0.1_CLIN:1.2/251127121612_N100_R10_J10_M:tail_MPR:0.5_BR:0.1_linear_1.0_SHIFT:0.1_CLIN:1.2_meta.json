@@ -1,0 +1,38 @@
+{
+  "date": "251127121612",
+  "execution_name": "250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05",
+  "model_name": "NewBaseResUNet_3layer_CFG_zero",
+  "weight_path": "./results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/weights/final_model_weights.pth",
+  "tag": "251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2",
+  "args": {
+    "target_cl": 1.2,
+    "n": 100,
+    "mask_type": "tail",
+    "missing_points_ratio": 0.5,
+    "blend_ratio": 0.1,
+    "blend_type": "linear",
+    "blend_value": 1.0,
+    "num_resampling": 10,
+    "jump_length": 10,
+    "cl_shift": 0.1,
+    "angle": 5.0,
+    "train_fraction": 1.0,
+    "scatter_labels": "train(sample),generated",
+    "base_point_label": "train(base)",
+    "seed": 42
+  },
+  "picked_train_index": 3154,
+  "cl_in": 1.2000755071640015,
+  "cl_target": 1.3000755071640016,
+  "base_cl": 1.2000756264,
+  "base_cd": 0.0139524154,
+  "outputs": {
+    "generated_npy": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2_generated.npy",
+    "train_coords_npy": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2_train_coords_for_scatter.npy",
+    "train_subset_clcd_npz": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2_train_clcd_subset.npz",
+    "hist_cl_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2_hist_cl.png",
+    "hist_err_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2_hist_err.png",
+    "stats_txt": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2_stats.txt",
+    "cl_cd_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/analysis/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2/251127121612_N100_R10_J10_M:tail_MPR:0.5_BR:0.1_linear_1.0_SHIFT:0.1_CLIN:1.2_cl_cd_scatter.png"
+  }
+}

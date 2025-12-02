@@ -1,0 +1,11 @@
+cl_mse_mean: 0.0005759110225728378
+cl_mape_mean: 1.7567308852628063
+cl_convergence_ratio: 0.9714285714285714
+cl_smoothness_phi_mean: 8.763354301452637
+cl_ape_mean: nan
+known_change_ratio_points_mean: 0.09913217053945234
+known_change_ratio_x: 0.1
+smooth_method: laplacian
+smooth_alpha: 0.2
+smooth_num_iters: 20
+smooth_ma_window: 5
