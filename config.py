@@ -59,6 +59,9 @@ MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero"
 # EXECUTION_NAME = "250628-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05+kernel777"
 # MODEL_NAME = "NewBaseResUNet_3layer_CFG_zero_widekernel_2"
 
+# EXECUTION_NAME = "251225-001:Baseline+beta_end0.05"  # OK+phi
+# MODEL_NAME = "BaselineConditionalUNet"
+
 
 WEIGHT_PATH = f"./results/{EXECUTION_NAME}/weights/final_model_weights.pth"
 
@@ -80,8 +83,10 @@ DIFFUSION_PARAMS = {
 
 # Output settings
 OUTPUT_MODE = "conv3x3"  # ["co nv3x3", "conv1x1", "fc", "fc_nn"]
-GUIDANCE_SCALE = 2.0  # 2.0 (CFG) or 1.0 (normal conditional) or 0.0 (unconditional)
-P_UNCOND = 0.1
+# GUIDANCE_SCALE = 2.0  # 2.0 (CFG) or 1.0 (normal conditional) or 0.0 (unconditional)
+# P_UNCOND = 0.1
+GUIDANCE_SCALE = 1.0  # 2.0 (CFG) or 1.0 (normal conditional) or 0.0 (unconditional)
+P_UNCOND = 0.0
 EVALUATION_INTERVAL = 500
 EVAL_NUM_SAMPLES_FOR_EACH_CL = 10
 PLOT_NUM_SAMPLES_FOR_EACH_CL = 5
