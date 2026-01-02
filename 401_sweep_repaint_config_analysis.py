@@ -20,7 +20,7 @@ from config import EXECUTION_NAME
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 PY = shlex.quote(os.environ.get("PYTHON", "python"))
-SCRIPT_400 = os.path.join(HERE, "400_repeat_config_analysis.py")
+SCRIPT_400 = os.path.join(HERE, "400_repaint_config_analysis.py")
 
 def parse_list(s, typ=float):
     if s is None: return None
