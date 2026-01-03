@@ -318,29 +318,29 @@ def plot_base_panel(base: np.ndarray, mask: np.ndarray, ax, title: str = "") -> 
     """
     BASEは全て実線。missing を強調しない（凡例は known/blend/generated の3つに限定するため）。
     """
-    m = mask
-    known = m == 1.0
-    blend = (m > 0.0) & (m < 1.0)
+    # m = mask
+    # known = m == 1.0
+    # blend = (m > 0.0) & (m < 1.0)
 
-    ax.plot(base[0], base[1], color="k", lw=1.5, ls="-", label="_nolegend_")
+    ax.plot(base[0], base[1], color="tab:blue", lw=2.5, ls="-", label="_nolegend_")
 
-    ax.plot(
-        np.ma.array(base[0], mask=~known),
-        np.ma.array(base[1], mask=~known),
-        color="tab:blue",
-        lw=2.5,
-        ls="-",
-        label="known",
-    )
-    if blend.any():
-        ax.plot(
-            np.ma.array(base[0], mask=~blend),
-            np.ma.array(base[1], mask=~blend),
-            color=mid_rgb,
-            lw=2.5,
-            ls="-",
-            label="blend",
-        )
+    # ax.plot(
+    #     np.ma.array(base[0], mask=~known),
+    #     np.ma.array(base[1], mask=~known),
+    #     color="tab:blue",
+    #     lw=2.5,
+    #     ls="-",
+    #     label="known",
+    # )
+    # if blend.any():
+    #     ax.plot(
+    #         np.ma.array(base[0], mask=~blend),
+    #         np.ma.array(base[1], mask=~blend),
+    #         color=mid_rgb,
+    #         lw=2.5,
+    #         ls="-",
+    #         label="blend",
+    #     )
 
     ax.set_title(title, fontsize=10)
     ax.set_aspect("equal", "box")
@@ -515,7 +515,7 @@ def generate_until_all_shifts_have_valid_best_by_cl(
     np.ndarray,  # best_coords (S,2,L)
     np.ndarray,  # best_cl (S,)
     np.ndarray,  # best_cd (S,)
-    np.ndarray,  # best_abs_cl_err (S,)
+    np.ndarray,  # best_ape_cl_err (S,)
     np.ndarray,  # best_attempt (S,)
     np.ndarray,  # best_sample_id (S,)
     np.ndarray,  # has_valid (S,)
@@ -539,7 +539,7 @@ def generate_until_all_shifts_have_valid_best_by_cl(
 
     # best trackers (valid only)
     has_valid = np.zeros(S, dtype=bool)
-    best_abs_err = np.full(S, np.inf, dtype=float)
+    best_ape_err = np.full(S, np.inf, dtype=float)
     best_coords = np.zeros((S, 2, L), dtype=np.float32)
     best_cl = np.full(S, np.nan, dtype=float)
     best_cd = np.full(S, np.nan, dtype=float)
@@ -597,7 +597,7 @@ def generate_until_all_shifts_have_valid_best_by_cl(
                     clv = float(cls_out[s_i, n_i])
                     cdv = float(cds_out[s_i, n_i])
                     is_valid = (not np.isnan(clv)) and (not np.isnan(cdv))
-                    abs_err = abs(clv - tgt) if is_valid else np.nan
+                    ape_err = abs((clv - tgt) / tgt) * 100 if is_valid and tgt != 0 else np.nan
 
                     records_all.append(
                         {
@@ -609,14 +609,14 @@ def generate_until_all_shifts_have_valid_best_by_cl(
                             "cl_out": clv,
                             "cd_out": cdv,
                             "valid": int(is_valid),
-                            "abs_cl_err": abs_err,
+                            "abs_cl_err": ape_err,
                         }
                     )
 
                     if is_valid:
                         has_valid[s_i] = True
-                        if abs_err < best_abs_err[s_i]:
-                            best_abs_err[s_i] = abs_err
+                        if ape_err < best_ape_err[s_i]:
+                            best_ape_err[s_i] = ape_err
                             best_coords[s_i] = rep_den[s_i, n_i]
                             best_cl[s_i] = clv
                             best_cd[s_i] = cdv
@@ -629,7 +629,7 @@ def generate_until_all_shifts_have_valid_best_by_cl(
                     best_coords,
                     best_cl,
                     best_cd,
-                    best_abs_err,
+                    best_ape_err,
                     best_attempt,
                     best_sample_id,
                     has_valid,
@@ -650,7 +650,7 @@ def generate_until_all_shifts_have_valid_best_by_cl(
                 best_coords[s_i] = last_attempt_coords[s_i, n_sel]
                 best_cl[s_i] = float(last_attempt_cl[s_i, n_sel])  # nan のまま
                 best_cd[s_i] = float(last_attempt_cd[s_i, n_sel])  # nan のまま
-                best_abs_err[s_i] = np.nan
+                best_ape_err[s_i] = np.nan
                 best_attempt[s_i] = max_attempts
                 best_sample_id[s_i] = n_sel
 
@@ -658,7 +658,7 @@ def generate_until_all_shifts_have_valid_best_by_cl(
             best_coords,
             best_cl,
             best_cd,
-            best_abs_err,
+            best_ape_err,
             best_attempt,
             best_sample_id,
             has_valid,
@@ -836,7 +836,7 @@ def main():
             best_coords,
             best_cl,
             best_cd,
-            best_abs_err,
+            best_ape_err,
             best_attempt,
             best_sample_id,
             has_valid,
@@ -890,7 +890,7 @@ def main():
                     "cl_target": cl_tgt,
                     "best_cl_out": float(best_cl[s_i]),
                     "best_cd_out": float(best_cd[s_i]),
-                    "best_abs_cl_err": float(best_abs_err[s_i]) if np.isfinite(best_abs_err[s_i]) else np.nan,
+                    "best_ape_cl_err": float(best_ape_err[s_i]) if np.isfinite(best_ape_err[s_i]) else np.nan,
                     "best_attempt": int(best_attempt[s_i]),
                     "best_sample_id": int(best_sample_id[s_i]),
                     "has_valid": int(bool(has_valid[s_i])),
@@ -915,7 +915,7 @@ def main():
             "per_shift_has_valid": [int(x) for x in has_valid.tolist()],
             "per_shift_best_attempt": [int(x) for x in best_attempt.tolist()],
             "per_shift_best_sample_id": [int(x) for x in best_sample_id.tolist()],
-            "per_shift_best_abs_cl_err": [float(x) if np.isfinite(x) else None for x in best_abs_err.tolist()],
+            "per_shift_best_ape_cl_err": [float(x) if np.isfinite(x) else None for x in best_ape_err.tolist()],
             "outputs": {
                 "generated_best_npy": best_npy,
                 "generated_last_attempt_npy": last_npy,
@@ -931,26 +931,28 @@ def main():
         fig_w = max(16, 3.2 * cols)
         fig, axes = plt.subplots(1, cols, figsize=(fig_w, 4.5))
 
-        base_title = f"BASE\nCL(label): {base_cl_label:.3f}\nCD(train): {base_cd:.4f}"
+        base_title = f"BASE\nCL: {base_cl_label:.3f}\nCD: {base_cd:.4f}\n"
         plot_base_panel(coord_denorm, mask_np, axes[0], title=base_title)
 
         for s_i, shift in enumerate(shifts):
             rep = best_coords[s_i]
-            converged = bool(has_valid[s_i])
-            note = "" if converged else "NOT CONVERGED (using last attempt)"
+            # converged = bool(has_valid[s_i])
+            # note = "" if converged else "NOT CONVERGED (using last attempt)"
+            if shift is None:
+                shift = 0.0
             title = (
-                f"SHIFT {shift}\n"
-                f"{note}\n"
-                f"best(attempt={int(best_attempt[s_i])}, id={int(best_sample_id[s_i])})\n"
-                f"CL_tgt: {fmt(base_cl_label + float(shift_vals[s_i]), '.3f')}\n"
+                f"SHIFT {shift:.1f}\n"
+                # f"{note}\n"
+                # f"best(attempt={int(best_attempt[s_i])}, id={int(best_sample_id[s_i])})\n"
+                f"CL_in: {fmt(base_cl_label + float(shift_vals[s_i]), '.3f')}\n"
                 f"CL_out: {fmt(best_cl[s_i], '.3f')}\n"
-                f"CD_out: {fmt(best_cd[s_i], '.4f')}\n"
-                f"|err|: {fmt(best_abs_err[s_i], '.4f')}"
+                # f"CD_out: {fmt(best_cd[s_i], '.4f')}\n"
+                f"APE: {fmt(best_ape_err[s_i], '.1f')}"
             )
             plot_inpaint(coord_denorm, rep, mask_np, axes[1 + s_i], title=title)
 
         plt.tight_layout()
-        add_row_legend_known_blend_generated(fig, axes)
+        # add_row_legend_known_blend_generated(fig, axes)
 
         row_png = os.path.join(base_subdir, "row.png")
         fig.savefig(row_png, dpi=250)
@@ -966,14 +968,14 @@ def main():
         for s_i, shift in enumerate(shifts):
             rep = best_coords[s_i]
             c = cmap(s_i / max(S - 1, 1))
-            lab = "generated (shift=None)" if shifts[s_i] is None else f"generated (shift={float(shifts[s_i]):.1f})"
+            lab = "generated (shift=0.0)" if shifts[s_i] is None else f"generated (shift={float(shifts[s_i]):.1f})"
             ax.plot(rep[0], rep[1], linewidth=1.6, color=c, label=lab)
 
         ax.set_aspect("equal", "box")
         ax.set_xlim(-0.1, 1.1)
         ax.set_ylim(-0.25, 0.4)
         ax.grid(True)
-        ax.set_title("Overlay (base + best generated for each CL_SHIFT)")
+        ax.set_title("Overlay (base + generated for each CL shift)")
         ax.legend(fontsize=8, ncol=2)
         plt.tight_layout()
 
@@ -984,7 +986,7 @@ def main():
         # ---------------------------
         # Plot 3) CL–CD scatter (best only, figsize=(8,6))
         # ---------------------------
-        fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
         ax.scatter(
             train_cls_xfoil[plot_train_idx],
             train_cds_xfoil[plot_train_idx],
@@ -999,10 +1001,10 @@ def main():
             best_cd[valid_best],
             c=shift_vals[valid_best],
             s=60,
-            label="generated (best per shift, colored by shift)",
+            label="generated (colored by shift)",
         )
         cb = plt.colorbar(sc, ax=ax)
-        cb.set_label("CL_SHIFT (None treated as 0.0)")
+        cb.set_label("CL shift")
 
         if not (np.isnan(base_cl_label) or np.isnan(base_cd)):
             ax.scatter(
