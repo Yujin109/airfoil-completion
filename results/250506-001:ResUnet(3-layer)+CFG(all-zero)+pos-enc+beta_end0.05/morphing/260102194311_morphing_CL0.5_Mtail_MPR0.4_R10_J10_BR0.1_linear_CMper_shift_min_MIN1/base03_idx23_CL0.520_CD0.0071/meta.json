@@ -1,0 +1,39 @@
+{
+  "base_order": 3,
+  "base_index": 23,
+  "base_cl_label": 0.5196746587753296,
+  "base_cd_train": 0.0070502115,
+  "convergence_mode": "per_shift_min",
+  "min_valid_per_shift": 1,
+  "xfoil_convergence_ratio_all_samples": 0.5555555555555556,
+  "xfoil_valid_count_per_shift": [
+    2,
+    3,
+    3,
+    1,
+    1,
+    1,
+    2,
+    1,
+    1
+  ],
+  "regen_attempts_used": 7,
+  "representative_sample_id_per_shift": [
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    1,
+    2,
+    2
+  ],
+  "outputs": {
+    "generated_npy": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260102194311_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_CMper_shift_min_MIN1/base03_idx23_CL0.520_CD0.0071/generated.npy",
+    "metrics_csv": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260102194311_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_CMper_shift_min_MIN1/base03_idx23_CL0.520_CD0.0071/metrics.csv",
+    "row_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260102194311_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_CMper_shift_min_MIN1/base03_idx23_CL0.520_CD0.0071/row.png",
+    "overlay_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260102194311_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_CMper_shift_min_MIN1/base03_idx23_CL0.520_CD0.0071/overlay.png",
+    "cl_cd_scatter_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260102194311_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_CMper_shift_min_MIN1/base03_idx23_CL0.520_CD0.0071/cl_cd_scatter.png"
+  }
+}
