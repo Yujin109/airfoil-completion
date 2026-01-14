@@ -1,0 +1,62 @@
+{
+  "base_order": 2,
+  "base_index": 436,
+  "base_cl_label": 0.5097565054893494,
+  "base_cd_train": 0.0101369238,
+  "attempts_used": 15,
+  "stop_condition": "all_shifts_have_at_least_one_converged_sample",
+  "best_selection": "minimize |CL_out - CL_target| among converged candidates across all attempts",
+  "per_shift_has_valid": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0
+  ],
+  "per_shift_best_attempt": [
+    5,
+    14,
+    10,
+    6,
+    6,
+    11,
+    15,
+    15,
+    15
+  ],
+  "per_shift_best_sample_id": [
+    0,
+    1,
+    1,
+    1,
+    2,
+    0,
+    2,
+    0,
+    0
+  ],
+  "per_shift_best_ape_cl_err": [
+    0.12021335338546914,
+    0.42524855519814175,
+    9.723089312147001,
+    18.285762871514603,
+    19.382786630963636,
+    34.3907326278853,
+    39.079660236936576,
+    null,
+    null
+  ],
+  "outputs": {
+    "generated_best_npy": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260103225350_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_N3_ATT15_BESTbyCL/base02_idx436_CL0.510_CD0.0101/generated_best.npy",
+    "generated_last_attempt_npy": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260103225350_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_N3_ATT15_BESTbyCL/base02_idx436_CL0.510_CD0.0101/generated_last_attempt.npy",
+    "metrics_all_csv": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260103225350_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_N3_ATT15_BESTbyCL/base02_idx436_CL0.510_CD0.0101/metrics_all.csv",
+    "metrics_best_csv": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260103225350_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_N3_ATT15_BESTbyCL/base02_idx436_CL0.510_CD0.0101/metrics_best.csv",
+    "row_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260103225350_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_N3_ATT15_BESTbyCL/base02_idx436_CL0.510_CD0.0101/row.png",
+    "overlay_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260103225350_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_N3_ATT15_BESTbyCL/base02_idx436_CL0.510_CD0.0101/overlay.png",
+    "cl_cd_scatter_png": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/260103225350_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_N3_ATT15_BESTbyCL/base02_idx436_CL0.510_CD0.0101/cl_cd_scatter.png"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "date": "260103041702",
+  "execution_name": "250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05",
+  "model_name": "NewBaseResUNet_3layer_CFG_zero",
+  "weight_path": "./results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/weights/final_model_weights.pth",
+  "tag": "260103041702_morphing_CL0.5_Mtail_MPR0.4_R10_J10_BR0.1_linear_N3_ATT15_BESTbyCL",
+  "args": {
+    "target_cl": 0.5,
+    "cl_window": 0.05,
+    "cd_targets": "0.005,0.010,0.015,0.020,0.025,0.030,0.035",
+    "mask_type": "tail",
+    "missing_points_ratio": 0.4,
+    "num_resampling": 10,
+    "jump_length": 10,
+    "blend_ratio": 0.1,
+    "blend_type": "linear",
+    "blend_value": 0.5,
+    "cl_shifts": "None,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8",
+    "n_per_shift": 3,
+    "angle": 5.0,
+    "xfoil_workers": 8,
+    "max_attempts": 15,
+    "train_max_points": 0,
+    "seed": 42
+  },
+  "train_cache_path": "results/250506-001:ResUnet(3-layer)+CFG(all-zero)+pos-enc+beta_end0.05/morphing/_cache/train_clcd_cache_angle5.000.npz",
+  "picked_base_indices": [
+    5,
+    459,
+    879,
+    1200,
+    1555,
+    1831,
+    1928
+  ]
+}
