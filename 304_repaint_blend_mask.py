@@ -143,33 +143,43 @@ def mask_manual(
             raise ValueError(f"Unknown blend_type: {blend_type}")
 
     elif pattern == "middle":
+        # 定義: 全領域 = [Left Known] [Left Blend] [Missing] [Right Blend] [Right Known]
+
+        # 欠損領域（Missing）の中心と幅を計算
         half_known = (1.0 - missing_ratio) * range_x / 2
         miss_start = x_min + half_known
         miss_end = x_max - half_known
-        blend_half = blend_ratio * range_x / 2
-        blend_left_start = miss_start - blend_half
-        blend_left_end = miss_start
-        blend_right_start = miss_end
-        blend_right_end = miss_end + blend_half
 
-        # known
+        # Blend領域の片側の幅
+        blend_half = blend_ratio * range_x / 2
+
+        # 各境界座標の定義
+        blend_left_start = miss_start - blend_half  # Left Known と Left Blend の境界
+        blend_left_end = miss_start                 # Left Blend と Missing の境界
+        blend_right_start = miss_end                # Missing と Right Blend の境界
+        blend_right_end = miss_end + blend_half     # Right Blend と Right Known の境界
+
+        # 1. Known領域（外側）を 1.0 に設定
         mask[xs <= blend_left_start] = 1.0
         mask[xs >= blend_right_end] = 1.0
-        # missing
-        mask[(xs > miss_start) & (xs < miss_end)] = 0.0
 
-        # left blend
+        # 2. Missing領域（真ん中）を 0.0 に設定
+        mask[(xs > blend_left_end) & (xs < blend_right_start)] = 0.0
+
+        # 3. Left Blend領域（左側）: Known(1.0) -> Missing(0.0) へ滑らかに接続
         left_idx = (xs > blend_left_start) & (xs <= blend_left_end)
         if blend_type == "constant":
             mask[left_idx] = blend_value
         else:  # linear
-            mask[left_idx] = (xs[left_idx] - blend_left_start) / (blend_left_end - blend_left_start)
+            # 距離に応じて 1.0 -> 0.0 に減少させる (修正箇所)
+            mask[left_idx] = 1.0 - (xs[left_idx] - blend_left_start) / (blend_left_end - blend_left_start)
 
-        # right blend
+        # 4. Right Blend領域（右側）: Missing(0.0) -> Known(1.0) へ滑らかに接続
         right_idx = (xs >= blend_right_start) & (xs < blend_right_end)
         if blend_type == "constant":
             mask[right_idx] = blend_value
         else:  # linear
+            # 距離に応じて 0.0 -> 1.0 に増加させる（元のままでOK）
             mask[right_idx] = (xs[right_idx] - blend_right_start) / (blend_right_end - blend_right_start)
 
     elif pattern == "top":

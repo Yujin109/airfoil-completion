@@ -123,8 +123,13 @@ def mask_manual(pattern, coords, missing_ratio, blend_ratio, blend_type, blend_v
             if blend_type == "constant":
                 mask[left_idx] = mask[right_idx] = blend_value
             else:
-                mask[left_idx] = (xs[left_idx] - bls) / (ble - bls)
+                # --- 修正箇所 ---
+                # 左側: Known(1.0) -> Missing(0.0) へ減少させる
+                mask[left_idx] = 1.0 - (xs[left_idx] - bls) / (ble - bls)
+
+                # 右側: Missing(0.0) -> Known(1.0) へ増加させる（変更なし）
                 mask[right_idx] = (xs[right_idx] - brs) / (bre - brs)
+                # ----------------
 
     elif pattern == "top":
         miss_idx = np.arange(half_n, n)

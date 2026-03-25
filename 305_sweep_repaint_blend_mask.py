@@ -33,13 +33,24 @@ SWEEP_SETTINGS = [
     {
         "mask_types": ["top", "bottom"],
         "missing_points_ratio_list": [0.5],
-        "cl_shifts": [0.1],
+        "cl_shifts": [None],
         "num_resampling_list": [10],
         "jump_length_list": [10],
-        "blend_ratio_list": [0.05],
+        "blend_ratio_list": [0.1],
         "blend_type_list": ["linear"],
         "blend_value_list": [1],
     },
+    # SWEEP_SETTINGS = [
+    #     {
+    #         "mask_types": ["middle"],
+    #         "missing_points_ratio_list": [0.1, 0.3, 0.5, 0.7, 0.9],
+    #         "cl_shifts": [None, 0.1],
+    #         "num_resampling_list": [10],
+    #         "jump_length_list": [10],
+    #         "blend_ratio_list": [0.1],
+    #         "blend_type_list": ["linear"],
+    #         "blend_value_list": [1],
+    #     },
 ]
 
 
